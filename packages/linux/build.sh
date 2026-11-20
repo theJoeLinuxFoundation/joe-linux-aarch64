@@ -5,8 +5,15 @@ NOSTRIP=1
 # llvm-strip and the rest): joe Linux ARM has no GCC and no binutils. ARCH
 # is given although the build root is itself an aarch64 system, so that the
 # build does not depend on the kernel guessing it from uname.
+# The kernel's own build tools are compiled for the build root, against
+# bionic, by hostcc, which keeps the kernel's internal headers from taking
+# the place of the C library's (see there). bionic's ELF types are the
+# kernel's (<linux/elf.h>: Elf64_Addr is unsigned long long), glibc's
+# uint64_t (unsigned long): the same, but elf-parse.h passes one for the
+# other, so that is not an error here.
 kmake() {
-    make ARCH=arm64 LLVM=1 "$@"
+    make ARCH=arm64 LLVM=1 HOSTCC=/recipe/hostcc \
+        HOSTCFLAGS=-Wno-error=incompatible-pointer-types "$@"
 }
 
 prepare() {

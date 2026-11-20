@@ -1,0 +1,17 @@
+#!/bin/bash
+# The compiler for the kernel's own build tools (HOSTCC). They are compiled
+# for the build root, against bionic, whose headers include the kernel's
+# user-space headers by name (<linux/types.h>, <linux/elf.h>, ...). Where a
+# Makefile puts the kernel's internal include/ first for a tool, bionic's
+# headers would find the kernel's internal ones there, which do not fit a C
+# library (glibc's headers include none of them): that directory is searched
+# after the C library's instead. Kbuild runs the compiler from the top of the
+# tree.
+args=()
+for arg in "$@"; do
+    case $arg in
+        -Iinclude | -I./include | "-I$PWD/include") args+=(-idirafter "${arg#-I}") ;;
+        *) args+=("$arg") ;;
+    esac
+done
+exec clang "${args[@]}"
