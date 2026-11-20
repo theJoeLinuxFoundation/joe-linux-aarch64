@@ -1,0 +1,42 @@
+joe Linux: bcopy and bzero as functions on 64-bit too, beside <strings.h>'s macros, as glibc and
+musl have them and as bionic already exports them on 32-bit Arm and x86. Configure scripts look for
+them by linking, and OpenSSH, finding no bzero, defined its own, which the macro broke.
+
+diff --git i/libc/bionic/joe_bsd_strings.cpp w/libc/bionic/joe_bsd_strings.cpp
+index 3ce66de..8a84bfd 100644
+--- i/libc/bionic/joe_bsd_strings.cpp
++++ w/libc/bionic/joe_bsd_strings.cpp
+@@ -38,3 +38,20 @@ char* index(const char* s, int ch) {
+ char* rindex(const char* s, int ch) {
+   return const_cast<char*>(strrchr(s, ch));
+ }
++
++// joe Linux: bcopy(3) and bzero(3) as functions too, as glibc and musl have
++// them, beside <strings.h>'s macros. Configure scripts look for them by
++// linking, and a program that finds none supplies its own, which the macros
++// then turn into nonsense (OpenSSH's bzero). On 32-bit Arm and x86, bionic
++// already exports both for old NDK apps (ndk_cruft.cpp).
++#if defined(__LP64__)
++#undef bcopy
++extern "C" void bcopy(const void* src, void* dst, size_t n) {
++  memmove(dst, src, n);
++}
++
++#undef bzero
++extern "C" void bzero(void* dst, size_t n) {
++  memset(dst, 0, n);
++}
++#endif
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+index e786767..f3ce9bc 100644
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1890,6 +1890,8 @@ LIBC_JOE { # introduced=37
+     ether_line;
+     ether_ntohost;
+     fopencookie;
++    bcopy; # arm64 riscv64 x86_64
++    bzero; # arm64 riscv64 x86_64
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
