@@ -1,0 +1,79 @@
+joe Linux: <sys/kd.h> and <sys/soundcard.h>, glibc's and musl's names for the kernel's <linux/kd.h>
+and <linux/soundcard.h>; util-linux's sulogin includes the first.
+
+diff --git i/libc/include/sys/kd.h w/libc/include/sys/kd.h
+new file mode 100644
+--- /dev/null
++++ w/libc/include/sys/kd.h
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++#pragma once
++
++/**
++ * @file sys/kd.h
++ * @brief console and keyboard ioctls (KDGETMODE, KDSETMODE, ...): the kernel's <linux/kd.h>, as glibc and musl give it
++ * (joe Linux).
++ */
++
++#include <sys/cdefs.h>
++
++#include <linux/kd.h>
+diff --git i/libc/include/sys/soundcard.h w/libc/include/sys/soundcard.h
+new file mode 100644
+--- /dev/null
++++ w/libc/include/sys/soundcard.h
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++#pragma once
++
++/**
++ * @file sys/soundcard.h
++ * @brief the Open Sound System interface: the kernel's <linux/soundcard.h>, as glibc and musl give it
++ * (joe Linux).
++ */
++
++#include <sys/cdefs.h>
++
++#include <linux/soundcard.h>

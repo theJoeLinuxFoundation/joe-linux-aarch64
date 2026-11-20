@@ -86,8 +86,8 @@ What turns it from Android's C library into a Linux one is in
   file handles (`name_to_handle_at`) and `cachestat`;
 - GNU and BSD interfaces that programs written for Linux use without checking
   for them: `strverscmp` and `versionsort`, `strftime_z`, `ushort`,
-  `MAXNAMLEN`, the rest of `<paths.h>`, IPv6 address macros that take any
-  pointer, and `faccessat` with `AT_EACCESS`;
+  `MAXNAMLEN`, `IFTODT`, the rest of `<paths.h>`, `<sys/kd.h>`, IPv6
+  address macros that take any pointer, and `faccessat` with `AT_EACCESS`;
 - functions the headers declare under another name are also exported under
   their own, so that configure scripts' link tests tell the truth;
 - `<sched.h>` gives programs the kernel's constants without
