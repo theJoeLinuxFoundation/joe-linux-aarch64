@@ -1,0 +1,162 @@
+joe Linux: what agetty needs to record logins, as glibc has it: updwtmp and updwtmpx, which append
+a record to a login records file such as /var/log/wtmp (bionic's utmp functions are stubs: Android
+keeps no records), utmpxname, _PATH_UTMP and _PATH_WTMP in <paths.h>, and vhangup. util-linux
+builds agetty only where updwtmpx exists; without it the system had no getty.
+
+diff --git i/libc/SYSCALLS.TXT w/libc/SYSCALLS.TXT
+index 3b041c7..e2d004f 100644
+--- i/libc/SYSCALLS.TXT
++++ w/libc/SYSCALLS.TXT
+@@ -129,6 +129,7 @@ fanotify_init(unsigned int, unsigned int) all
+ fanotify_mark(int, unsigned int, uint64_t, int, const char*) all
+ name_to_handle_at(int, const char*, struct file_handle*, int*, int) all
+ open_by_handle_at(int, struct file_handle*, int) all
++vhangup() all
+ # joe Linux: POSIX message queues (bionic/joe_posix_ipc.cpp).
+ __mq_open:mq_open(const char*, int, mode_t, struct mq_attr*) all
+ __mq_unlink:mq_unlink(const char*) all
+diff --git i/libc/bionic/utmp.cpp w/libc/bionic/utmp.cpp
+index aa00cd5..368f8ad 100644
+--- i/libc/bionic/utmp.cpp
++++ w/libc/bionic/utmp.cpp
+@@ -29,6 +29,9 @@
+ #include <utmp.h>
+ 
+ #include <errno.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <utmpx.h>
+ 
+ void endutent() {}
+ 
+@@ -46,3 +49,38 @@ int utmpname(const char*) {
+   errno = ENOTSUP;
+   return -1;
+ }
++
++// joe Linux: updwtmp(3) and updwtmpx(3) append a record to a login records
++// file such as /var/log/wtmp, as glibc's do, and do nothing where the file
++// does not exist (Android keeps none). agetty records logins with
++// updwtmpx(), and util-linux builds agetty only where it exists.
++void updwtmp(const char* path, const utmp* entry) {
++  int fd = open(path, O_WRONLY | O_APPEND | O_CLOEXEC);
++  if (fd == -1) return;
++  // Locked while it is written, and cut back to its size before if the
++  // record could not be written whole, as glibc does.
++  struct flock lock = {};
++  lock.l_type = F_WRLCK;
++  lock.l_whence = SEEK_SET;
++  bool locked = TEMP_FAILURE_RETRY(fcntl(fd, F_SETLKW, &lock)) == 0;
++  off_t size = lseek(fd, 0, SEEK_END);
++  if (size != -1 &&
++      TEMP_FAILURE_RETRY(write(fd, entry, sizeof(*entry))) != static_cast<ssize_t>(sizeof(*entry))) {
++    TEMP_FAILURE_RETRY(ftruncate(fd, size));
++  }
++  if (locked) {
++    lock.l_type = F_UNLCK;
++    fcntl(fd, F_SETLK, &lock);
++  }
++  close(fd);
++}
++
++// (<utmpx.h> declares these only for _GNU_SOURCE.)
++extern "C" int utmpxname(const char* path) {
++  return utmpname(path);
++}
++
++extern "C" void updwtmpx(const char* path, const utmpx* entry) {
++  static_assert(sizeof(utmpx) == sizeof(utmp), "struct utmpx is struct utmp");
++  updwtmp(path, reinterpret_cast<const utmp*>(entry));
++}
+diff --git i/libc/include/paths.h w/libc/include/paths.h
+index efed38f..873833e 100644
+--- i/libc/include/paths.h
++++ w/libc/include/paths.h
+@@ -67,8 +67,7 @@ __BEGIN_DECLS
+ 
+ /*
+  * joe Linux: the rest of glibc's paths, which programs written for Linux
+- * use without checking that they are defined. utmp.h has the accounting
+- * files'.
++ * use without checking that they are defined.
+  */
+ 
+ /** Path to the list of login shells. */
+@@ -104,4 +103,9 @@ __BEGIN_DECLS
+ #define _PATH_VARRUN "/var/run/"
+ #define _PATH_VARDB "/var/db/"
+ 
++/** The login records files, which <utmp.h> names too (agetty takes them from here). */
++#define _PATH_UTMP "/var/run/utmp"
++#define _PATH_WTMP "/var/log/wtmp"
++#define _PATH_LASTLOG "/var/log/lastlog"
++
+ __END_DECLS
+diff --git i/libc/include/unistd.h w/libc/include/unistd.h
+index b9cf633..716b185 100644
+--- i/libc/include/unistd.h
++++ w/libc/include/unistd.h
+@@ -451,6 +451,13 @@ int ttyname_r(int __fd, char* _Nonnull __buf, size_t __buf_size);
+ 
+ int acct(const char* _Nullable __path);
+ 
++/**
++ * [vhangup(2)](https://man7.org/linux/man-pages/man2/vhangup.2.html) hangs up
++ * the calling process's controlling terminal (joe Linux, as glibc; agetty
++ * uses it).
++ */
++int vhangup(void);
++
+ /**
+  * [getpagesize(2)](https://man7.org/linux/man-pages/man2/getpagesize.2.html)
+  * returns the system's page size. This is slightly faster than going via
+diff --git i/libc/include/utmp.h w/libc/include/utmp.h
+index 87cf362..08d17a5 100644
+--- i/libc/include/utmp.h
++++ w/libc/include/utmp.h
+@@ -121,6 +121,13 @@ struct utmp* _Nullable pututline(const struct utmp* _Nonnull __entry);
+  */
+ void endutent(void);
+ 
++/**
++ * [updwtmp(3)](https://man7.org/linux/man-pages/man3/updwtmp.3.html) appends
++ * a record to a login records file such as /var/log/wtmp, if it exists
++ * (joe Linux, as glibc).
++ */
++void updwtmp(const char* _Nonnull __path, const struct utmp* _Nonnull __entry);
++
+ #if __BIONIC_AVAILABILITY_GUARD(23)
+ /**
+  * [login_tty(3)](https://www.man7.org/linux/man-pages/man3/login_tty.3.html)
+diff --git i/libc/include/utmpx.h w/libc/include/utmpx.h
+index 3f00209..72b3887 100644
+--- i/libc/include/utmpx.h
++++ w/libc/include/utmpx.h
+@@ -100,4 +100,12 @@ struct utmpx* _Nullable pututxline(const struct utmpx* _Nonnull __entry) __RENAM
+  */
+ void endutxent(void) __RENAME(endutent);
+ 
++#if defined(__USE_GNU)
++/** utmpxname(3) is utmpname() (joe Linux, as glibc): it fails with ENOTSUP. */
++int utmpxname(const char* _Nonnull __path);
++
++/** updwtmpx(3) is updwtmp() for a struct utmpx (joe Linux, as glibc). */
++void updwtmpx(const char* _Nonnull __path, const struct utmpx* _Nonnull __entry);
++#endif
++
+ __END_DECLS
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+index 34be2c5..ed0cafe 100644
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1893,6 +1893,10 @@ LIBC_JOE { # introduced=37
+     bcopy; # arm64 riscv64 x86_64
+     bzero; # arm64 riscv64 x86_64
+     __res_state;
++    updwtmp;
++    updwtmpx;
++    utmpxname;
++    vhangup;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
