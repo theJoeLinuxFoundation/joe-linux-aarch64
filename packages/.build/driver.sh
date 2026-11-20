@@ -25,6 +25,15 @@ export CC=${CC:-cc} CXX=${CXX:-c++} AR=${AR:-llvm-ar} RANLIB=${RANLIB:-llvm-ranl
 export NM=${NM:-llvm-nm} STRIP=${STRIP:-llvm-strip} OBJCOPY=${OBJCOPY:-llvm-objcopy}
 export OBJDUMP=${OBJDUMP:-llvm-objdump} READELF=${READELF:-llvm-readelf}
 
+# gettext is libintl's on bionic (glibc has it in libc), and builds written
+# for glibc often leave $(LIBINTL) out of a link: a library then calls
+# libintl_gettext without needing libintl, and every program linked with it
+# fails. Once gettext is installed, every link is given libintl, which lld
+# records only where something uses it (--as-needed).
+if [[ -e /usr/lib/libintl.so ]]; then
+    export LDFLAGS="${LDFLAGS:+$LDFLAGS }-Wl,--push-state,--as-needed,-lintl,--pop-state"
+fi
+
 # Configure scripts are told the system is aarch64-unknown-linux-android,
 # what config.guess says of bionic (clang defines __ANDROID__), whatever
 # version of config.guess a package carries. gnulib, in most of the GNU
