@@ -44,8 +44,8 @@ flit-core
 packaging
 wheel
 setuptools
-meson
 ninja
+meson
 linux-pam
 shadow
 kmod
