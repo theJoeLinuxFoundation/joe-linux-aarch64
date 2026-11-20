@@ -28,6 +28,7 @@ pub const iso = @import("iso.zig");
 pub const oci = @import("oci.zig");
 pub const command = @import("command.zig");
 pub const install_system = @import("install_system.zig");
+pub const efiboot = @import("efiboot.zig");
 pub const cli = @import("cli.zig");
 pub const help = @import("help.zig");
 pub const ui = @import("ui.zig");
@@ -1805,6 +1806,9 @@ const App = struct {
         var beside: ?provision.Beside = null;
         var root_uuid: provision.Uuid = undefined;
         var fstab: []const u8 = undefined;
+        // The ESP, for the firmware's boot entry.
+        var esp_device: []const u8 = undefined;
+        var esp_uuid_text: []const u8 = undefined;
         if (app.opts.beside) {
             var esp_uuid: provision.Uuid = undefined;
             @memcpy(&esp_uuid, disk.beside.esp[0..esp_uuid.len]);
@@ -1813,10 +1817,12 @@ const App = struct {
             const parts = disks.addBeside(device, b) catch return app.fail("{s}", .{disks.diag.message});
             app.step(0.03, "Creating file systems", .{});
             disks.formatBeside(parts.xbootldr, parts.root) catch return app.fail("{s}", .{disks.diag.message});
-            const esp_device = try std.fmt.allocPrint(app.arena, "/dev/disk/by-partuuid/{s}", .{disk.beside.esp});
-            disks.mountTarget(esp_device, parts.root) catch return app.fail("{s}", .{disks.diag.message});
+            const esp_device_link = try std.fmt.allocPrint(app.arena, "/dev/disk/by-partuuid/{s}", .{disk.beside.esp});
+            disks.mountTarget(esp_device_link, parts.root) catch return app.fail("{s}", .{disks.diag.message});
             disks.mountBoot(parts.xbootldr) catch return app.fail("{s}", .{disks.diag.message});
             beside = b;
+            esp_device = esp_device_link;
+            esp_uuid_text = disk.beside.esp;
             root_uuid = b.root_uuid;
             fstab = try provision.fstabBeside(app.arena, b);
         } else {
@@ -1826,6 +1832,8 @@ const App = struct {
             app.step(0.03, "Creating file systems", .{});
             disks.format(parts.esp, parts.root) catch return app.fail("{s}", .{disks.diag.message});
             disks.mountTarget(parts.esp, parts.root) catch return app.fail("{s}", .{disks.diag.message});
+            esp_device = parts.esp;
+            esp_uuid_text = try app.arena.dupe(u8, &layout.esp_uuid);
             root_uuid = layout.root_uuid;
             fstab = try provision.fstab(app.arena, layout);
         }
@@ -1888,27 +1896,14 @@ const App = struct {
                 provision.writeEsp(app.arena, app.io, esp, .{ .root = target, .kernel_path = kernel }, options) catch |e|
                     return app.fail("cannot write the EFI system partition: {t}", .{e});
             }
-            // Tell the firmware where the boot loader is. A firmware that will not
-            // be told still finds it at the removable-media path. bootctl also
-            // copies the loader there, over whatever is there: beside another
-            // system, that is put back unless it was systemd-boot already.
-            const fallback = boot.loader_targets[1];
-            const kept: ?[]const u8 = if (beside != null) keep: {
-                const old = esp.readFileAlloc(app.io, fallback, app.arena, .limited(64 * 1024 * 1024)) catch break :keep null;
-                break :keep if (boot.isLoader(old)) null else old;
-            } else null;
-            var argv: std.ArrayList([]const u8) = .empty;
-            try argv.appendSlice(app.arena, &.{
-                "bootctl",                "install",         "--root=" ++ target_path,    "--esp-path=/efi",
-                "--install-source=image", "--variables=yes", "--make-entry-directory=no", "--graceful",
-            });
-            if (beside != null) try argv.append(app.arena, "--boot-path=/" ++ provision.xbootldr_mount);
-            var diag: command.Diagnostic = .{};
-            if (command.run(app.arena, app.io, argv.items, .{}, &diag)) |_| {} else |_| {
-                app.say("note: the firmware was not told about the new system ({s}); it starts from the disk's removable-media path", .{diag.message}) catch {};
-            }
-            if (kept) |data| esp.writeFile(app.io, .{ .sub_path = fallback, .data = data }) catch |e|
-                return app.failErr(e, "cannot put back the other system's {s}", .{fallback});
+            // Tell the firmware where the boot loader is: a boot entry, first in
+            // its boot order, as `bootctl install --variables=yes` makes one
+            // (joe has no bootctl). A firmware that cannot be told still finds
+            // the loader at the removable-media path.
+            if (efiboot.partitionOf(app.arena, app.io, esp_device, esp_uuid_text)) |part| {
+                if (efiboot.register(app.arena, app.io, part, boot.loader_targets[0], "joe Linux")) |_| {} else |e|
+                    app.say("note: the firmware was not told about the new system ({t}); it starts from the disk's removable-media path", .{e}) catch {};
+            } else |e| app.say("note: the firmware was not told about the new system (the EFI system partition: {t}); it starts from the disk's removable-media path", .{e}) catch {};
         }
 
         app.step(0.99, "Finishing", .{});
