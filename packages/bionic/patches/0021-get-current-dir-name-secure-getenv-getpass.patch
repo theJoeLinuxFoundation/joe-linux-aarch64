@@ -1,0 +1,164 @@
+joe Linux: get_current_dir_name, secure_getenv and getpass, which glibc and musl have and bionic
+lacks; kmod, e2fsprogs and iproute2 use them.
+
+diff --git i/libc/Android.bp w/libc/Android.bp
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1101,6 +1101,7 @@
+         "bionic/joe_strverscmp.cpp",
+         "bionic/joe_posix_ipc.cpp",
+         "bionic/joe_usershell.cpp",
++        "bionic/joe_gnu_functions.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",
+diff --git i/libc/bionic/joe_gnu_functions.cpp w/libc/bionic/joe_gnu_functions.cpp
+new file mode 100644
+--- /dev/null
++++ w/libc/bionic/joe_gnu_functions.cpp
+@@ -0,0 +1,82 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++
++// joe Linux: get_current_dir_name(3), secure_getenv(3) and getpass(3),
++// which glibc and musl have and bionic lacks; kmod, e2fsprogs and iproute2
++// use them.
++
++#include <fcntl.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/auxv.h>
++#include <sys/stat.h>
++#include <termios.h>
++#include <unistd.h>
++
++char* get_current_dir_name() {
++  // $PWD, which keeps the symbolic links the shell followed, when it is
++  // the current directory; otherwise getcwd()'s answer.
++  const char* pwd = getenv("PWD");
++  struct stat dot, here;
++  if (pwd != nullptr && pwd[0] == '/' && stat(".", &dot) == 0 && stat(pwd, &here) == 0 &&
++      dot.st_dev == here.st_dev && dot.st_ino == here.st_ino) {
++    return strdup(pwd);
++  }
++  return getcwd(nullptr, 0);
++}
++
++char* secure_getenv(const char* name) {
++  return getauxval(AT_SECURE) ? nullptr : getenv(name);
++}
++
++char* getpass(const char* prompt) {
++  static char password[128];
++  int in = open("/dev/tty", O_RDWR | O_NOCTTY | O_CLOEXEC);
++  int out = in;
++  bool own = in != -1;
++  if (!own) {  // No terminal: standard input and standard error, as glibc.
++    in = STDIN_FILENO;
++    out = STDERR_FILENO;
++  }
++  termios saved;
++  bool restore = tcgetattr(in, &saved) == 0;
++  if (restore) {
++    termios quiet = saved;
++    quiet.c_lflag &= ~(ECHO | ISIG);
++    quiet.c_lflag |= ICANON;
++    tcsetattr(in, TCSAFLUSH, &quiet);
++  }
++  dprintf(out, "%s", prompt);
++  ssize_t n = read(in, password, sizeof(password) - 1);
++  if (n >= 0) {
++    if (n > 0 && password[n - 1] == '\n') --n;
++    password[n] = '\0';
++  }
++  if (restore) {
++    tcsetattr(in, TCSAFLUSH, &saved);
++    dprintf(out, "\n");
++  }
++  if (own) close(in);
++  return n < 0 ? nullptr : password;
++}
+diff --git i/libc/include/stdlib.h w/libc/include/stdlib.h
+--- i/libc/include/stdlib.h
++++ w/libc/include/stdlib.h
+@@ -76,6 +76,16 @@
+  */
+ char* _Nullable getenv(const char* _Nonnull __name);
+ 
++#if defined(__USE_GNU)
++/**
++ * [secure_getenv(3)](https://man7.org/linux/man-pages/man3/secure_getenv.3.html)
++ * is getenv(), except in a program running with privileges it was given
++ * by being executed (set-user-ID and the like: AT_SECURE), where it finds
++ * nothing (joe Linux, as glibc and musl).
++ */
++char* _Nullable secure_getenv(const char* _Nonnull __name);
++#endif
++
+ /**
+  * [putenv(3)](https://man7.org/linux/man-pages/man3/putenv.3.html)
+  * adds/updates an environment variable.
+diff --git i/libc/include/unistd.h w/libc/include/unistd.h
+--- i/libc/include/unistd.h
++++ w/libc/include/unistd.h
+@@ -473,6 +473,26 @@
+ /** endusershell() frees what getusershell() read. */
+ void endusershell(void);
+ 
++/**
++ * [getpass(3)](https://man7.org/linux/man-pages/man3/getpass.3.html)
++ * prompts on the terminal and reads a line without echoing it (joe Linux,
++ * as glibc and musl; obsolete, but programs still use it).
++ *
++ * Returns a pointer to a static buffer, or NULL on failure.
++ */
++char* _Nullable getpass(const char* _Nonnull __prompt);
++
++#if defined(__USE_GNU)
++/**
++ * [get_current_dir_name(3)](https://man7.org/linux/man-pages/man3/get_current_dir_name.3.html)
++ * returns the current directory in memory the caller frees: $PWD if it names
++ * the current directory, as glibc (joe Linux).
++ *
++ * Returns the path on success, and returns NULL and sets `errno` on failure.
++ */
++char* _Nullable get_current_dir_name(void);
++#endif
++
+ long syscall(long __number, ...);
+ 
+ int daemon(int __no_chdir, int __no_close);
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1879,6 +1879,9 @@
+     explicit_bzero;
+     getusershell;
+     setusershell;
++    get_current_dir_name;
++    getpass;
++    secure_getenv;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
