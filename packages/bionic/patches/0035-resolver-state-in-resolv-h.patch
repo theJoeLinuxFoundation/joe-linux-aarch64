@@ -1,0 +1,308 @@
+joe Linux: the resolver state in <resolv.h>, as glibc's and musl's give it to programs: struct
+__res_state, res_state, the RES_ options, and _res, the state res_init(), res_query() and the rest
+use (unlocked, as in glibc). OpenSSH sets _res.options for DNSSEC. The struct is bionic's own
+layout, moved from the private headers without its unused rstatic member.
+
+diff --git i/libc/dns/include/resolv_params.h w/libc/dns/include/resolv_params.h
+index ecc1cc3..06877a3 100644
+--- i/libc/dns/include/resolv_params.h
++++ w/libc/dns/include/resolv_params.h
+@@ -19,9 +19,10 @@
+ 
+ #include <stdint.h>
+ 
++/* joe Linux: MAXNS, MAXDNSRCH and the send hooks are in <resolv.h>. */
++#include <resolv.h>
++
+ /* Hard-coded defines */
+-#define MAXNS			4	/* max # name servers we'll track */
+-#define MAXDNSRCH		6	/* max # domains in search path */
+ #define MAXDNSRCHPATH		256	/* max length of domain search paths */
+ #define MAXNSSAMPLES		64	/* max # samples to store per server */
+ 
+@@ -48,15 +49,4 @@ struct __res_params {
+     int base_timeout_msec;  // base query retry timeout (if 0, use RES_TIMEOUT)
+ };
+ 
+-typedef enum { res_goahead, res_nextns, res_modified, res_done, res_error }
+-	res_sendhookact;
+-
+-typedef res_sendhookact (*res_send_qhook)(struct sockaddr * const *,
+-					      const u_char **, int *,
+-					      u_char *, int, int *);
+-
+-typedef res_sendhookact (*res_send_rhook)(const struct sockaddr *,
+-					      const u_char *, int, u_char *,
+-					      int, int *);
+-
+ #endif // _RESOLV_PARAMS_H
+diff --git i/libc/dns/include/resolv_private.h w/libc/dns/include/resolv_private.h
+index 68fac6f..cb91f42 100644
+--- i/libc/dns/include/resolv_private.h
++++ w/libc/dns/include/resolv_private.h
+@@ -126,68 +126,13 @@ struct res_sym {
+ #define	LOCALDOMAINPARTS	2	/* min levels in name that is "local" */
+ 
+ #define	RES_TIMEOUT		5	/* min. seconds between retries */
+-#define	MAXRESOLVSORT		10	/* number of net to sort on */
+ #define	RES_MAXNDOTS		15	/* should reflect bit field size */
+ #define	RES_MAXRETRANS		30	/* only for resolv.conf/RES_OPTIONS */
+ #define	RES_MAXRETRY		5	/* only for resolv.conf/RES_OPTIONS */
+ #define	RES_DFLRETRY		2	/* Default #/tries. */
+ #define	RES_MAXTIME		65535	/* Infinity, in milliseconds. */
+ 
+-struct __res_state_ext;
+-
+-struct __res_state {
+-	unsigned	netid;			/* NetId: cache key and socket mark */
+-	int	retrans;	 	/* retransmission time interval */
+-	int	retry;			/* number of times to retransmit */
+-#ifdef sun
+-	u_int	options;		/* option flags - see below. */
+-#else
+-	u_long	options;		/* option flags - see below. */
+-#endif
+-	int	nscount;		/* number of name servers */
+-	struct sockaddr_in
+-		nsaddr_list[MAXNS];	/* address of name server */
+-#define	nsaddr	nsaddr_list[0]		/* for backward compatibility */
+-	u_short	id;			/* current message id */
+-	char	*dnsrch[MAXDNSRCH+1];	/* components of domain to search */
+-	char	defdname[256];		/* default domain (deprecated) */
+-#ifdef sun
+-	u_int	pfcode;			/* RES_PRF_ flags - see below. */
+-#else
+-	u_long	pfcode;			/* RES_PRF_ flags - see below. */
+-#endif
+-	unsigned ndots:4;		/* threshold for initial abs. query */
+-	unsigned nsort:4;		/* number of elements in sort_list[] */
+-	char	unused[3];
+-	struct {
+-		struct in_addr	addr;
+-		uint32_t	mask;
+-	} sort_list[MAXRESOLVSORT];
+-#ifdef __OLD_RES_STATE
+-	char lookups[4];
+-#else
+-	res_send_qhook qhook;		/* query hook */
+-	res_send_rhook rhook;		/* response hook */
+-	int	res_h_errno;		/* last one set for this context */
+-	unsigned _mark;			/* If non-0 SET_MARK to _mark on all request sockets */
+-	int	_vcsock;		/* PRIVATE: for res_send VC i/o */
+-	u_int	_flags;			/* PRIVATE: see below */
+-	u_int	_pad;			/* make _u 64 bit aligned */
+-	union {
+-		/* On an 32-bit arch this means 512b total. */
+-		char	pad[72 - 4*sizeof (int) - 2*sizeof (void *)];
+-		struct {
+-			uint16_t		nscount;
+-			uint16_t		nstimes[MAXNS];	/* ms. */
+-			int			nssocks[MAXNS];
+-			struct __res_state_ext *ext;	/* extention for IPv6 */
+-		} _ext;
+-	} _u;
+-#endif
+-        struct res_static   rstatic[1];
+-};
+-
+-typedef struct __res_state *res_state;
++/* joe Linux: struct __res_state and res_state are in <resolv.h>. */
+ 
+ /* Retrieve a local copy of the stats for the given netid. The buffer must have space for
+  * MAXNS __resolver_stats. Returns the revision id of the resolvers used.
+@@ -236,37 +181,7 @@ union res_sockaddr_union {
+ #define	RES_IPV4ONLY	0x00000002	/* IPv4 only */
+ #define	RES_IPV6ONLY	0x00000004	/* IPv6 only */
+ 
+-/*
+- * Resolver options (keep these in synch with res_debug.c, please)
+- */
+-#define RES_INIT	0x00000001	/* address initialized */
+-#define RES_DEBUG	0x00000002	/* print debug messages */
+-#define RES_AAONLY	0x00000004	/* authoritative answers only (!IMPL)*/
+-#define RES_USEVC	0x00000008	/* use virtual circuit */
+-#define RES_PRIMARY	0x00000010	/* query primary server only (!IMPL) */
+-#define RES_IGNTC	0x00000020	/* ignore trucation errors */
+-#define RES_RECURSE	0x00000040	/* recursion desired */
+-#define RES_DEFNAMES	0x00000080	/* use default domain name */
+-#define RES_STAYOPEN	0x00000100	/* Keep TCP socket open */
+-#define RES_DNSRCH	0x00000200	/* search up local domain tree */
+-#define	RES_INSECURE1	0x00000400	/* type 1 security disabled */
+-#define	RES_INSECURE2	0x00000800	/* type 2 security disabled */
+-#define	RES_NOALIASES	0x00001000	/* shuts off HOSTALIASES feature */
+-#define	RES_USE_INET6	0x00002000	/* use/map IPv6 in gethostbyname() */
+-#define RES_ROTATE	0x00004000	/* rotate ns list after each query */
+-#define	RES_NOCHECKNAME	0x00008000	/* do not check names for sanity. */
+-#define	RES_KEEPTSIG	0x00010000	/* do not strip TSIG records */
+-#define	RES_BLAST	0x00020000	/* blast all recursive servers */
+-#define RES_NOTLDQUERY	0x00100000	/* don't unqualified name as a tld */
+-#define RES_USE_DNSSEC	0x00200000	/* use DNSSEC using OK bit in OPT */
+-/* #define RES_DEBUG2	0x00400000 */	/* nslookup internal */
+-/* KAME extensions: use higher bit to avoid conflict with ISC use */
+-#define RES_USE_DNAME	0x10000000	/* use DNAME */
+-#define RES_USE_EDNS0	0x40000000	/* use EDNS0 if configured */
+-#define RES_NO_NIBBLE2	0x80000000	/* disable alternate nibble lookup */
+-
+-#define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | \
+-			 RES_DNSRCH | RES_NO_NIBBLE2)
++/* joe Linux: the resolver options (RES_INIT, ...) are in <resolv.h>. */
+ 
+ /*
+  * Resolver "pfcode" values.  Used by dig.
+diff --git i/libc/dns/resolv/res_data.cpp w/libc/dns/resolv/res_data.cpp
+index 22d9f7b..c13f603 100644
+--- i/libc/dns/resolv/res_data.cpp
++++ w/libc/dns/resolv/res_data.cpp
+@@ -38,18 +38,18 @@ class GlobalStateAccessor {
+     pthread_mutex_unlock(&mutex);
+   }
+ 
+-  __res_state* get() {
++  struct __res_state* get() {
+     return &state;
+   }
+ 
+   int init();
+ 
+  private:
+-  static __res_state state;
++  static struct __res_state state;
+   static bool initialized;
+   static pthread_mutex_t mutex;
+ };
+-__res_state GlobalStateAccessor::state;
++struct __res_state GlobalStateAccessor::state;
+ bool GlobalStateAccessor::initialized = false;
+ pthread_mutex_t GlobalStateAccessor::mutex = PTHREAD_MUTEX_INITIALIZER;
+ 
+@@ -86,6 +86,13 @@ int res_init(void) {
+   return gsa.init();
+ }
+ 
++// joe Linux: _res, the state the functions here use, as glibc's and musl's <resolv.h> give
++// it to programs. Like theirs, it is not locked once it is returned.
++struct __res_state* __res_state(void) {
++  GlobalStateAccessor gsa;
++  return gsa.get();
++}
++
+ void p_query(const u_char* msg) {
+   fp_query(msg, stdout);
+ }
+diff --git i/libc/include/resolv.h w/libc/include/resolv.h
+index 2ebc4ed..d9c0a7d 100644
+--- i/libc/include/resolv.h
++++ w/libc/include/resolv.h
+@@ -40,6 +40,100 @@
+ 
+ __BEGIN_DECLS
+ 
++/*
++ * joe Linux: the resolver's state and its options, which glibc's and musl's <resolv.h> give
++ * programs (OpenSSH sets _res.options for DNSSEC). _res is the state res_init(), res_query(),
++ * res_search() and res_mkquery() use; as in glibc and musl, it is not locked. The layout is
++ * bionic's own.
++ */
++#define MAXNS 4 /* max # name servers we'll track */
++#define MAXDNSRCH 6 /* max # domains in search path */
++#define MAXRESOLVSORT 10 /* number of net to sort on */
++
++typedef enum { res_goahead, res_nextns, res_modified, res_done, res_error } res_sendhookact;
++
++typedef res_sendhookact (*res_send_qhook)(struct sockaddr* _Nonnull const* _Nonnull, const u_char* _Nonnull* _Nonnull, int* _Nonnull, u_char* _Nonnull, int, int* _Nonnull);
++
++typedef res_sendhookact (*res_send_rhook)(const struct sockaddr* _Nonnull, const u_char* _Nonnull, int, u_char* _Nonnull, int, int* _Nonnull);
++
++struct __res_state_ext;
++
++struct __res_state {
++  unsigned netid; /* NetId: cache key and socket mark */
++  int retrans; /* retransmission time interval */
++  int retry; /* number of times to retransmit */
++  u_long options; /* option flags - see below. */
++  int nscount; /* number of name servers */
++  struct sockaddr_in nsaddr_list[MAXNS]; /* address of name server */
++#define nsaddr nsaddr_list[0] /* for backward compatibility */
++  u_short id; /* current message id */
++  char* _Nullable dnsrch[MAXDNSRCH + 1]; /* components of domain to search */
++  char defdname[256]; /* default domain (deprecated) */
++  u_long pfcode; /* RES_PRF_ flags */
++  unsigned ndots:4; /* threshold for initial abs. query */
++  unsigned nsort:4; /* number of elements in sort_list[] */
++  char unused[3];
++  struct {
++    struct in_addr addr;
++    uint32_t mask;
++  } sort_list[MAXRESOLVSORT];
++  res_send_qhook _Nullable qhook; /* query hook */
++  res_send_rhook _Nullable rhook; /* response hook */
++  int res_h_errno; /* last one set for this context */
++  unsigned _mark; /* If non-0 SET_MARK to _mark on all request sockets */
++  int _vcsock; /* PRIVATE: for res_send VC i/o */
++  u_int _flags; /* PRIVATE */
++  u_int _pad; /* make _u 64 bit aligned */
++  union {
++    /* On an 32-bit arch this means 512b total. */
++    char pad[72 - 4 * sizeof(int) - 2 * sizeof(void*)];
++    struct {
++      uint16_t nscount;
++      uint16_t nstimes[MAXNS]; /* ms. */
++      int nssocks[MAXNS];
++      struct __res_state_ext* _Nullable ext; /* extention for IPv6 */
++    } _ext;
++  } _u;
++};
++
++typedef struct __res_state* res_state;
++
++/*
++ * Resolver options (keep these in synch with res_debug.c, please)
++ */
++#define RES_INIT	0x00000001	/* address initialized */
++#define RES_DEBUG	0x00000002	/* print debug messages */
++#define RES_AAONLY	0x00000004	/* authoritative answers only (!IMPL)*/
++#define RES_USEVC	0x00000008	/* use virtual circuit */
++#define RES_PRIMARY	0x00000010	/* query primary server only (!IMPL) */
++#define RES_IGNTC	0x00000020	/* ignore trucation errors */
++#define RES_RECURSE	0x00000040	/* recursion desired */
++#define RES_DEFNAMES	0x00000080	/* use default domain name */
++#define RES_STAYOPEN	0x00000100	/* Keep TCP socket open */
++#define RES_DNSRCH	0x00000200	/* search up local domain tree */
++#define	RES_INSECURE1	0x00000400	/* type 1 security disabled */
++#define	RES_INSECURE2	0x00000800	/* type 2 security disabled */
++#define	RES_NOALIASES	0x00001000	/* shuts off HOSTALIASES feature */
++#define	RES_USE_INET6	0x00002000	/* use/map IPv6 in gethostbyname() */
++#define RES_ROTATE	0x00004000	/* rotate ns list after each query */
++#define	RES_NOCHECKNAME	0x00008000	/* do not check names for sanity. */
++#define	RES_KEEPTSIG	0x00010000	/* do not strip TSIG records */
++#define	RES_BLAST	0x00020000	/* blast all recursive servers */
++#define RES_NOTLDQUERY	0x00100000	/* don't unqualified name as a tld */
++#define RES_USE_DNSSEC	0x00200000	/* use DNSSEC using OK bit in OPT */
++/* #define RES_DEBUG2	0x00400000 */	/* nslookup internal */
++/* KAME extensions: use higher bit to avoid conflict with ISC use */
++#define RES_USE_DNAME	0x10000000	/* use DNAME */
++#define RES_USE_EDNS0	0x40000000	/* use EDNS0 if configured */
++#define RES_NO_NIBBLE2	0x80000000	/* disable alternate nibble lookup */
++
++#define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | \
++			 RES_DNSRCH | RES_NO_NIBBLE2)
++
++/** The resolver state that `_res` names (joe Linux, as glibc and musl). */
++struct __res_state* _Nonnull __res_state(void);
++#define _res (*__res_state())
++
+ #define b64_ntop __b64_ntop
+ int b64_ntop(u_char const* _Nonnull __src, size_t __src_size, char* _Nonnull __dst, size_t __dst_size);
+ #define b64_pton __b64_pton
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+index f3ce9bc..34be2c5 100644
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1892,6 +1892,7 @@ LIBC_JOE { # introduced=37
+     fopencookie;
+     bcopy; # arm64 riscv64 x86_64
+     bzero; # arm64 riscv64 x86_64
++    __res_state;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
