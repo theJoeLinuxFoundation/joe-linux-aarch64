@@ -1,0 +1,12 @@
+.{
+    .name = "gdbm",
+    .version = "1.26",
+    .release = 2,
+    .description = "GNU database manager: a library of hashed key/value database functions",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/gdbm/gdbm-1.26.tar.gz", .sha256 = "6a24504a14de4a744103dcb936be976df6fbe88ccff26065e54c1c47946f4a5e" },
+    },
+    .depends = .{ "bionic", "readline", "ncurses" },
+    .build_depends = .{"gettext"},
+}

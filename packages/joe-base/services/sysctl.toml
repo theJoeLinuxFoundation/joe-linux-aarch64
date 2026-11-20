@@ -1,0 +1,16 @@
+# Kernel settings from sysctl.d (/etc, /run, /usr/lib), as systemd-sysctl
+# applies them.
+[service]
+name = "sysctl"
+supervisor = "early-boot"
+exec = ["/usr/sbin/sysctl", "--system"]
+type = "oneshot"
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["fstab-mount"]
+
+[readiness]
+type = "none"

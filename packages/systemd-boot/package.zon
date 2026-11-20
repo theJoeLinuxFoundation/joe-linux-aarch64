@@ -1,0 +1,13 @@
+.{
+    .name = "systemd-boot",
+    .version = "262.1",
+    .release = 1,
+    .description = "systemd-boot, the UEFI boot manager joe Linux's deployments boot through",
+    .license = "LGPL-2.1-or-later",
+    .sources = .{
+        .{ .url = "https://github.com/systemd/systemd/archive/v262.1/systemd-262.1.tar.gz", .sha256 = "100fc873b848b9b0297d8a705e8e2ed326256c8483d9960ee1ffe264c8a5c3e3" },
+    },
+    // An EFI program: it needs nothing of the system at run time.
+    .depends = .{},
+    .build_depends = .{ "meson", "ninja", "python", "jinja2", "pyelftools", "gperf" },
+}

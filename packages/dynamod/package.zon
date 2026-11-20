@@ -1,0 +1,17 @@
+.{
+    .name = "dynamod",
+    .version = "0.1.0",
+    .release = 1,
+    .description = "dynamod, the init system and service manager, with its systemd-compatible commands",
+    .license = "MIT",
+    // The services it runs at boot (packages/joe-base) use util-linux's
+    // mount and agetty; nothing of the programs themselves needs more than
+    // the C library.
+    .depends = .{"bionic"},
+    .operations = .{
+        // PID 1, the service manager that starts every service, and the
+        // command that stops and reboots the machine: where privilege starts,
+        // as systemd's PID 1 and executor are on joe Linux.
+        .{ .programs = .{ "usr/sbin/dynamod-init", "usr/lib/dynamod/dynamod-svmgr", "usr/bin/dynamodctl" }, .allow = .{"all"} },
+    },
+}

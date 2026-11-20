@@ -1,0 +1,12 @@
+.{
+    .name = "vim",
+    .version = "9.2.1225",
+    .release = 1,
+    .description = "Vi Improved, a programmer's text editor (console only)",
+    .license = "Vim",
+    .sources = .{
+        .{ .url = "https://github.com/vim/vim/archive/v9.2.1225/vim-9.2.1225.tar.gz", .sha256 = "797cf32f4a54a0a943d215ce3b8103d0a38f3e2d5dd1ae578e23acdb7fc2278d" },
+    },
+    .depends = .{ "bionic", "ncurses", "acl" },
+    .build_depends = .{"gettext"},
+}

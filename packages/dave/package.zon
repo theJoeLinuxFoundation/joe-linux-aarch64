@@ -1,0 +1,14 @@
+.{
+    .name = "dave",
+    .version = "0.3.0",
+    .release = 1,
+    .description = "The joe Linux package manager and deployment tool",
+    .license = "MIT",
+    // Its services run under dynamod; it calls `reboot` (dynamod) and
+    // the boot loader is systemd-boot (in the systemd-boot package).
+    .depends = .{"dynamod"},
+    // dave installs, upgrades and seals the whole system as root.
+    .operations = .{
+        .{ .programs = .{ "usr/bin/dave" }, .allow = .{"all"} },
+    },
+}

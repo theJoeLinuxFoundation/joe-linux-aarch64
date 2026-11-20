@@ -1,0 +1,14 @@
+# The kernel mounts the root itself (joe boots without an initramfs) and the
+# command line asks for it read-write; this makes sure, for a root mounted
+# read-only.
+[service]
+name = "remount-root-rw"
+supervisor = "early-boot"
+exec = ["/usr/bin/mount", "-o", "remount,rw", "/"]
+type = "oneshot"
+
+[restart]
+policy = "temporary"
+
+[readiness]
+type = "none"

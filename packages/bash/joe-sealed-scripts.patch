@@ -1,0 +1,85 @@
+joe Linux: a privileged bash runs and sources only sealed script files.
+
+Before reading a script file (one named on the command line, or one read by
+`source`, `.` or as a startup file) bash asks the joe security module whether
+the file is sealed. Commands typed interactively and `-c` strings are not
+files and are not affected. See packages/linux/joe-lsm/joe.c.
+
+--- a/shell.c	2025-03-26 22:40:19.000000000 +0200
++++ b/shell.c	2026-11-12 20:17:11.811029851 +0200
+@@ -1610,6 +1610,16 @@
+       sh_exit ((e == ENOENT) ? EX_NOTFOUND : EX_NOINPUT);
+     }
+ 
++  /* joe Linux: a privileged shell runs only sealed script files. */
++  if (joe_script_refused (fd))
++    {
++      internal_error (_("%s: not sealed; a privileged shell runs only sealed scripts"), filename);
++#if defined (JOB_CONTROL)
++      end_job_control ();	/* just in case we were run as bash -i script */
++#endif
++      sh_exit (EX_NOEXEC);
++    }
++
+   free (dollar_vars[0]);
+   dollar_vars[0] = exec_argv0 ? savestring (exec_argv0) : savestring (script_name);
+   if (exec_argv0)
+--- a/builtins/evalfile.c	2024-09-06 22:42:40.000000000 +0300
++++ b/builtins/evalfile.c	2026-11-12 20:17:11.811057083 +0200
+@@ -132,6 +132,15 @@
+ 
+   errfunc = ((flags & FEVAL_BUILTIN) ? builtin_error : internal_error);
+ 
++  /* joe Linux: a privileged shell reads only sealed script files. This also
++     covers startup files, which are then skipped. */
++  if (joe_script_refused (fd))
++    {
++      (*errfunc) (_("%s: not sealed; a privileged shell reads only sealed scripts"), filename);
++      close (fd);
++      return ((flags & FEVAL_BUILTIN) ? EXECUTION_FAILURE : -1);
++    }
++
+   if (S_ISDIR (finfo.st_mode))
+     {
+       (*errfunc) (_("%s: is a directory"), filename);
+--- a/general.h	2025-06-25 22:52:47.000000000 +0300
++++ b/general.h	2026-11-12 20:17:24.842460883 +0200
+@@ -302,6 +302,10 @@
+ extern void print_rlimtype (RLIMTYPE, int);
+ #endif
+ 
++/* joe Linux: nonzero if the kernel's security module refuses to let this
++   process run the script open on FD. */
++extern int joe_script_refused (int);
++
+ extern int all_digits (const char *);
+ extern int valid_number (const char *, intmax_t *);
+ extern int valid_identifier (const char *);
+--- a/general.c	2025-06-25 22:54:35.000000000 +0300
++++ b/general.c	2026-11-12 20:17:24.842516829 +0200
+@@ -228,6 +228,25 @@
+ /*								    */
+ /* **************************************************************** */
+ 
++/* joe Linux. Before running a script file, ask the joe security module
++   whether this process may: a privileged process may run only sealed files.
++   The module answers a request no file system implements, so the only
++   refusal is EACCES; ENOTTY (also what a kernel without the module returns)
++   and anything else mean there is no objection. */
++#include <sys/ioctl.h>
++#define JOE_IOC_CHECK_SCRIPT 0xE701	/* _IO(0xE7, 0x01) */
++
++int
++joe_script_refused (int fd)
++{
++  int r, e;
++
++  e = errno;
++  r = ioctl (fd, JOE_IOC_CHECK_SCRIPT) < 0 && errno == EACCES;
++  errno = e;
++  return r;
++}
++
+ /* Return non-zero if all of the characters in STRING are digits. */
+ int
+ all_digits (const char *string)

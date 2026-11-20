@@ -1,0 +1,17 @@
+# A login prompt on the serial console the kernel uses: the one console= names
+# or, without it, the one the firmware describes (ACPI SPCR), which is how a
+# server's console (ttyAMA0, ttyS0) is found without configuration.
+[service]
+name = "serial-getty"
+exec = ["/usr/lib/joe/serial-getty"]
+type = "simple"
+
+[restart]
+policy = "permanent"
+delay = "1s"
+
+[dependencies]
+after = ["fstab-mount", "udev-coldplug"]
+
+[readiness]
+type = "none"

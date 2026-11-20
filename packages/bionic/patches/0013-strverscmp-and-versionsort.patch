@@ -1,0 +1,156 @@
+joe Linux: strverscmp(3) and versionsort(3), the GNU functions that sort names as version
+numbers, which glibc and musl have and bionic lacks; util-linux uses them.
+
+diff --git i/libc/Android.bp w/libc/Android.bp
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1098,6 +1098,7 @@
+         "bionic/joe_renamed.cpp",
+         "bionic/joe_strftime_z.cpp",
+         "bionic/joe_shadow.cpp",
++        "bionic/joe_strverscmp.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",
+diff --git i/libc/bionic/joe_strverscmp.cpp w/libc/bionic/joe_strverscmp.cpp
+new file mode 100644
+--- /dev/null
++++ w/libc/bionic/joe_strverscmp.cpp
+@@ -0,0 +1,76 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++
++// joe Linux: strverscmp(3) and versionsort(3), the GNU functions that order
++// names the way people number versions ("lib9" before "lib10"). glibc and
++// musl have them; util-linux's lsmem and chmem sort sysfs entries with them,
++// and libmount and login read configuration directories in their order.
++//
++// The algorithm is musl's (src/string/strverscmp.c, MIT license, Copyright
++// 2005-2020 Rich Felker, et al.), which gives glibc's documented order: digit
++// sequences compare as numbers, and one that begins with a zero is a
++// fraction, which sorts before any number ("000" < "00" < "01" < "010" <
++// "09" < "0" < "1" < "9" < "10").
++
++#include <ctype.h>
++#include <dirent.h>
++#include <string.h>
++
++int strverscmp(const char* lhs, const char* rhs) {
++  const unsigned char* l = reinterpret_cast<const unsigned char*>(lhs);
++  const unsigned char* r = reinterpret_cast<const unsigned char*>(rhs);
++
++  // The common prefix, where the digit sequence it ends in begins (`run`),
++  // and whether that sequence is all zeros so far.
++  size_t i = 0, run = 0;
++  bool zeros = true;
++  for (; l[i] == r[i]; i++) {
++    if (l[i] == '\0') return 0;
++    if (!isdigit(l[i])) {
++      run = i + 1;
++      zeros = true;
++    } else if (l[i] != '0') {
++      zeros = false;
++    }
++  }
++
++  if (l[run] - '1' < 9U && r[run] - '1' < 9U) {
++    // Two numbers (no leading zero): the one with more digits is greater;
++    // with as many, the first digit that differs decides.
++    size_t j = i;
++    for (; isdigit(l[j]); j++) {
++      if (!isdigit(r[j])) return 1;
++    }
++    if (isdigit(r[j])) return -1;
++  } else if (zeros && run < i && (isdigit(l[i]) || isdigit(r[i]))) {
++    // Two fractions with the same leading zeros: a digit sorts before
++    // anything else, since the longer fraction is the smaller one.
++    return static_cast<unsigned char>(l[i] - '0') - static_cast<unsigned char>(r[i] - '0');
++  }
++  return l[i] - r[i];
++}
++
++int versionsort(const dirent** lhs, const dirent** rhs) {
++  return strverscmp((*lhs)->d_name, (*rhs)->d_name);
++}
++__strong_alias(versionsort64, versionsort);
+diff --git i/libc/include/dirent.h w/libc/include/dirent.h
+--- i/libc/include/dirent.h
++++ w/libc/include/dirent.h
+@@ -245,4 +245,22 @@
+ int scandirat(int __dir_fd, const char* _Nonnull __path, struct dirent* _Nonnull * _Nonnull * _Nonnull __name_list, int (* _Nullable __filter)(const struct dirent* _Nonnull), int (* _Nullable __comparator)(const struct dirent* _Nonnull * _Nonnull, const struct dirent* _Nonnull * _Nonnull)) __INTRODUCED_IN(24);
+ #endif
+ 
++#if defined(__USE_GNU)
++/**
++ * [versionsort(3)](https://man7.org/linux/man-pages/man3/versionsort.3.html) is a
++ * comparator for use with scandir() that uses strverscmp().
++ *
++ * Available when compiling with `_GNU_SOURCE` (joe Linux).
++ */
++int versionsort(const struct dirent* _Nonnull * _Nonnull __lhs, const struct dirent* _Nonnull * _Nonnull __rhs);
++
++/**
++ * [versionsort64(3)](https://man7.org/linux/man-pages/man3/versionsort.3.html) is a
++ * comparator for use with scandir64() that uses strverscmp().
++ *
++ * Available when compiling with `_GNU_SOURCE` (joe Linux).
++ */
++int versionsort64(const struct dirent64* _Nonnull * _Nonnull __lhs, const struct dirent64* _Nonnull * _Nonnull __rhs);
++#endif
++
+ __END_DECLS
+diff --git i/libc/include/string.h w/libc/include/string.h
+--- i/libc/include/string.h
++++ w/libc/include/string.h
+@@ -194,6 +194,18 @@
+  * Available when compiling with `_GNU_SOURCE`.
+  */
+ const char* _Nonnull strerrordesc_np(int __errno_value) __RENAME(strerror);
++
++/**
++ * [strverscmp(3)](https://man7.org/linux/man-pages/man3/strverscmp.3.html)
++ * compares two strings as version numbers: digit sequences compare by their
++ * value, and one with a leading zero sorts before the others ("1.9" before
++ * "1.10", "01" before "1").
++ *
++ * Returns an integer less than, equal to, or greater than zero, as strcmp().
++ *
++ * Available when compiling with `_GNU_SOURCE` (joe Linux).
++ */
++int strverscmp(const char* _Nonnull __lhs, const char* _Nonnull __rhs) __attribute_pure__;
+ #endif
+ 
+ size_t strnlen(const char* _Nonnull __s, size_t __n) __attribute_pure__;
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1849,6 +1849,9 @@
+     sgetspent;
+     sgetspent_r;
+     ulckpwdf;
++    strverscmp;
++    versionsort;
++    versionsort64;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {

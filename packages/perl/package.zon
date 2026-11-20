@@ -1,0 +1,11 @@
+.{
+    .name = "perl",
+    .version = "5.44.0",
+    .release = 3,
+    .description = "The Perl programming language",
+    .license = "Artistic-1.0-Perl OR GPL-1.0-or-later",
+    .sources = .{
+        .{ .url = "https://www.cpan.org/src/5.0/perl-5.44.0.tar.xz", .sha256 = "505cf43912e9480495c344c70260452e32aa2a73c546a026b3f100053b23ce91" },
+    },
+    .depends = .{ "bionic", "libxcrypt", "zlib", "bzip2" },
+}

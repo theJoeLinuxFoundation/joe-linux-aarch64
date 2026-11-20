@@ -1,0 +1,19 @@
+.{
+    .name = "opendoas",
+    .version = "6.8.2",
+    .release = 1,
+    .description = "Lets permitted users run commands as root or another user, as OpenBSD's doas",
+    .license = "ISC AND BSD-3-Clause",
+    .sources = .{
+        // Signed by Duncan Overbruck, C4B6 FBA9 8211 F7EF F35D EB73 335C 1D17 EC3D 6E35.
+        .{ .url = "https://github.com/Duncaen/OpenDoas/releases/download/v6.8.2/opendoas-6.8.2.tar.xz", .sha256 = "4e98828056d6266bd8f2c93e6ecf12a63a71dbfd70a5ea99ccd4ab6d0745adf0" },
+    },
+    .depends = .{ "bionic", "linux-pam" },
+    .build_depends = .{"bison"},
+    // Set-uid root. Run by an ordinary user, a program holds only what its
+    // seal declares (packages/linux/joe-lsm), so this declares all, as sudo
+    // does; narrower lists are rule 3's work.
+    .operations = .{
+        .{ .programs = .{"usr/bin/doas"}, .allow = .{"all"} },
+    },
+}

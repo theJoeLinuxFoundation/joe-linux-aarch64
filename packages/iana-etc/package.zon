@@ -1,0 +1,10 @@
+.{
+    .name = "iana-etc",
+    .version = "20261015",
+    .release = 3,
+    .description = "The services and protocols databases from IANA",
+    .license = "MIT",
+    .sources = .{
+        .{ .url = "https://github.com/Mic92/iana-etc/releases/download/20261015/iana-etc-20261015.tar.gz", .sha256 = "6a4a9663befe0b9c5ad65433fdb161c4e7a8283fbc6f7f46cf4892291f8d29eb" },
+    },
+}

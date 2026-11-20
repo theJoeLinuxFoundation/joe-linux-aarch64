@@ -1,0 +1,16 @@
+# Services' output, kept under /var/log/dynamod.
+[service]
+name = "dynamod-logd"
+supervisor = "early-boot"
+exec = ["/usr/lib/dynamod/dynamod-logd"]
+type = "simple"
+
+[restart]
+policy = "permanent"
+delay = "1s"
+
+[dependencies]
+requires = ["fstab-mount"]
+
+[readiness]
+type = "none"

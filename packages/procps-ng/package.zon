@@ -1,0 +1,12 @@
+.{
+    .name = "procps-ng",
+    .version = "4.0.7",
+    .release = 1,
+    .description = "Programs for monitoring processes: ps, top, free, pgrep and others",
+    .license = "GPL-2.0-or-later AND LGPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://sourceforge.net/projects/procps-ng/files/Production/procps-ng-4.0.7.tar.xz", .sha256 = "9d2021f47a4501c667862c9942a92d1953694b21d11bcd1702e83eb594e3d67d" },
+    },
+    .depends = .{ "bionic", "ncurses" },
+    .build_depends = .{"pkgconf"},
+}

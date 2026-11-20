@@ -1,0 +1,175 @@
+joe Linux: syslog(3) sends RFC 3164 messages to /dev/log, with facilities, LOG_CONS and reconnection, in
+place of writing to Android's logd.
+
+diff --git i/libc/bionic/syslog.cpp w/libc/bionic/syslog.cpp
+index 9ac55b3..28c242e 100644
+--- i/libc/bionic/syslog.cpp
++++ w/libc/bionic/syslog.cpp
+@@ -14,35 +14,74 @@
+  * limitations under the License.
+  */
+ 
++// joe Linux: syslog(3) as on other Linux systems. Messages go to the system
++// logger's socket, /dev/log, as RFC 3164 datagrams; Android's version wrote
++// them to logd instead and ignored the facility.
++
+ #include <errno.h>
++#include <fcntl.h>
++#include <pthread.h>
++#include <stdarg.h>
++#include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
++#include <sys/socket.h>
++#include <sys/un.h>
+ #include <syslog.h>
++#include <time.h>
+ #include <unistd.h>
+ 
+-#include <async_safe/log.h>
++#include "private/ErrnoRestorer.h"
+ 
++static pthread_mutex_t syslog_lock = PTHREAD_MUTEX_INITIALIZER;
+ static const char* syslog_log_tag = nullptr;
+-// The "mask" is of _enabled_ log priorities, and defaults to all.
+ static int syslog_priority_mask = LOG_UPTO(LOG_DEBUG);
+ static int syslog_options = 0;
++static int syslog_facility = LOG_USER;
++static int syslog_fd = -1;
+ 
+-void closelog() {
+-  syslog_log_tag = nullptr;
+-  syslog_options = 0;
++static const sockaddr_un kLogAddress = {AF_UNIX, "/dev/log"};
++
++// With syslog_lock held.
++static void syslog_connect_locked() {
++  if (syslog_fd == -1) {
++    syslog_fd = socket(AF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC, 0);
++    if (syslog_fd == -1) return;
++  }
++  // A failed connect leaves the socket to try again with the next message,
++  // so that messages from before the logger starts are not all lost... at
++  // least not those sent after it does.
++  connect(syslog_fd, reinterpret_cast<const sockaddr*>(&kLogAddress), sizeof(kLogAddress));
+ }
+ 
+-void openlog(const char* log_tag, int options, int /*facility*/) {
++void closelog() {
++  pthread_mutex_lock(&syslog_lock);
++  if (syslog_fd != -1) {
++    close(syslog_fd);
++    syslog_fd = -1;
++  }
++  syslog_log_tag = nullptr;
++  syslog_options = 0;
++  pthread_mutex_unlock(&syslog_lock);
++}
++
++void openlog(const char* log_tag, int options, int facility) {
++  pthread_mutex_lock(&syslog_lock);
+   syslog_log_tag = log_tag;
+   syslog_options = options;
++  if (facility != 0) syslog_facility = facility & LOG_FACMASK;
++  if ((options & LOG_NDELAY) != 0) syslog_connect_locked();
++  pthread_mutex_unlock(&syslog_lock);
+ }
+ 
+ int setlogmask(int new_mask) {
++  pthread_mutex_lock(&syslog_lock);
+   int old_mask = syslog_priority_mask;
+   // 0 is used to query the current mask.
+   if (new_mask != 0) {
+     syslog_priority_mask = new_mask;
+   }
++  pthread_mutex_unlock(&syslog_lock);
+   return old_mask;
+ }
+ 
+@@ -54,40 +93,61 @@ void syslog(int priority, const char* fmt, ...) {
+ }
+ 
+ void vsyslog(int priority, const char* fmt, va_list args) {
+-  // Check whether we're supposed to be logging messages of this priority.
++  // %m is the error at the time of the call, and errno is left as it was.
++  int saved_errno = errno;
++  ErrnoRestorer errno_restorer;
++
++  if ((priority & ~(LOG_PRIMASK | LOG_FACMASK)) != 0) return;
++
++  pthread_mutex_lock(&syslog_lock);
+   if ((syslog_priority_mask & LOG_MASK(LOG_PRI(priority))) == 0) {
++    pthread_mutex_unlock(&syslog_lock);
+     return;
+   }
++  if ((priority & LOG_FACMASK) == 0) priority |= syslog_facility;
+ 
+-  // What's our log tag?
+   const char* log_tag = syslog_log_tag;
+-  if (log_tag == nullptr) {
+-    log_tag = getprogname();
+-  }
++  if (log_tag == nullptr) log_tag = getprogname();
+ 
+-  // What's our Android log priority?
+-  priority &= LOG_PRIMASK;
+-  int android_log_priority;
+-  if (priority <= LOG_ERR) {
+-    android_log_priority = ANDROID_LOG_ERROR;
+-  } else if (priority == LOG_WARNING) {
+-    android_log_priority = ANDROID_LOG_WARN;
+-  } else if (priority <= LOG_INFO) {
+-    android_log_priority = ANDROID_LOG_INFO;
++  // <PRI>Mmm dd hh:mm:ss tag[pid]: message, at most RFC 3164's 1024 bytes.
++  char line[1024];
++  time_t now = time(nullptr);
++  tm tm;
++  char stamp[32];
++  if (localtime_r(&now, &tm) == nullptr || strftime(stamp, sizeof(stamp), "%b %e %T", &tm) == 0) {
++    stamp[0] = '\0';
++  }
++  int header;
++  if ((syslog_options & LOG_PID) != 0) {
++    header = snprintf(line, sizeof(line), "<%d>%s %s[%d]: ", priority, stamp, log_tag, getpid());
+   } else {
+-    android_log_priority = ANDROID_LOG_DEBUG;
++    header = snprintf(line, sizeof(line), "<%d>%s %s: ", priority, stamp, log_tag);
+   }
++  if (header < 0 || static_cast<size_t>(header) >= sizeof(line)) header = 0;
++  errno = saved_errno;
++  int n = vsnprintf(line + header, sizeof(line) - header, fmt, args);
++  if (n < 0) n = 0;
++  size_t len = header + n;
++  if (len >= sizeof(line)) len = sizeof(line) - 1;
++  // The logger adds its own line ends.
++  while (len > static_cast<size_t>(header) && line[len - 1] == '\n') --len;
+ 
+-  // We can't let async_safe_format_log do the formatting because it doesn't
+-  // support all the printf functionality.
+-  char log_line[1024];
+-  int n = vsnprintf(log_line, sizeof(log_line), fmt, args);
+-  if (n < 0) return;
+-
+-  async_safe_write_log(android_log_priority, log_tag, log_line);
++  if (syslog_fd == -1) syslog_connect_locked();
++  bool sent = syslog_fd != -1 && send(syslog_fd, line, len, MSG_NOSIGNAL) != -1;
++  if (!sent && syslog_fd != -1) {
++    // The logger may have been restarted: connect again and retry once.
++    syslog_connect_locked();
++    sent = send(syslog_fd, line, len, MSG_NOSIGNAL) != -1;
++  }
++  if (!sent && (syslog_options & LOG_CONS) != 0) {
++    int fd = open("/dev/console", O_WRONLY | O_NOCTTY | O_CLOEXEC);
++    if (fd != -1) {
++      dprintf(fd, "%.*s\r\n", static_cast<int>(len - header), line + header);
++      close(fd);
++    }
++  }
+   if ((syslog_options & LOG_PERROR) != 0) {
+-    bool have_newline =
+-        (n > 0 && n < static_cast<int>(sizeof(log_line)) && log_line[n - 1] == '\n');
+-    dprintf(STDERR_FILENO, "%s: %s%s", log_tag, log_line, have_newline ? "" : "\n");
++    dprintf(STDERR_FILENO, "%s: %.*s\n", log_tag, static_cast<int>(len - header), line + header);
+   }
++  pthread_mutex_unlock(&syslog_lock);
+ }

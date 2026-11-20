@@ -1,0 +1,152 @@
+joe Linux: names glibc and musl headers have that programs written for Linux use: ushort and
+ulong, MAXNAMLEN, the rest of glibc's _PATH_ macros, IPv6 address macros that take any
+pointer, and <scsi/sg.h>'s sense buffer as bytes.
+
+diff --git i/libc/include/dirent.h w/libc/include/dirent.h
+--- i/libc/include/dirent.h
++++ w/libc/include/dirent.h
+@@ -38,6 +38,11 @@
+ #include <stdint.h>
+ #include <sys/types.h>
+ 
++#if defined(__USE_BSD) || defined(__USE_GNU)
++/** BSD's name for NAME_MAX, the longest file name (joe Linux). */
++#define MAXNAMLEN 255
++#endif
++
+ __BEGIN_DECLS
+ 
+ /** d_type value when the type is not known. */
+diff --git i/libc/include/netinet/in6.h w/libc/include/netinet/in6.h
+--- i/libc/include/netinet/in6.h
++++ w/libc/include/netinet/in6.h
+@@ -35,28 +35,32 @@
+ 
+ __BEGIN_DECLS
+ 
++/* joe Linux: the address macros take any pointer to an address, as glibc's
++ * and musl's do; programs pass them a `const void*`. */
++#define __bionic_in6(a) __BIONIC_CAST(reinterpret_cast, const struct in6_addr*, a)
++
+ #define IN6_IS_ADDR_UNSPECIFIED(a) \
+-  ((((a)->s6_addr32[0]) == 0) && \
+-   (((a)->s6_addr32[1]) == 0) && \
+-   (((a)->s6_addr32[2]) == 0) && \
+-   (((a)->s6_addr32[3]) == 0))
++  (((__bionic_in6((a))->s6_addr32[0]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[1]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[2]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[3]) == 0))
+ 
+ #define IN6_IS_ADDR_LOOPBACK(a) \
+-  ((((a)->s6_addr32[0]) == 0) && \
+-   (((a)->s6_addr32[1]) == 0) && \
+-   (((a)->s6_addr32[2]) == 0) && \
+-   (((a)->s6_addr32[3]) == ntohl(1)))
++  (((__bionic_in6((a))->s6_addr32[0]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[1]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[2]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[3]) == ntohl(1)))
+ 
+ #define IN6_IS_ADDR_V4COMPAT(a) \
+-  ((((a)->s6_addr32[0]) == 0) && \
+-   (((a)->s6_addr32[1]) == 0) && \
+-   (((a)->s6_addr32[2]) == 0) && \
+-   (((a)->s6_addr32[3]) != 0) && (((a)->s6_addr32[3]) != ntohl(1)))
++  (((__bionic_in6((a))->s6_addr32[0]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[1]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[2]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[3]) != 0) && ((__bionic_in6((a))->s6_addr32[3]) != ntohl(1)))
+ 
+ #define IN6_IS_ADDR_V4MAPPED(a) \
+-  ((((a)->s6_addr32[0]) == 0) && \
+-   (((a)->s6_addr32[1]) == 0) && \
+-   (((a)->s6_addr32[2]) == ntohl(0x0000ffff)))
++  (((__bionic_in6((a))->s6_addr32[0]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[1]) == 0) && \
++   ((__bionic_in6((a))->s6_addr32[2]) == ntohl(0x0000ffff)))
+ 
+ #define __bionic_s6_addr(a) __BIONIC_CAST(reinterpret_cast, const uint8_t*, a)
+ 
+@@ -91,7 +95,7 @@
+   (IN6_IS_ADDR_MULTICAST(a) && (IPV6_ADDR_MC_SCOPE(a) == IPV6_ADDR_SCOPE_GLOBAL))
+ 
+ #define IN6_ARE_ADDR_EQUAL(a, b) \
+-  (__builtin_memcmp(&(a)->s6_addr[0], &(b)->s6_addr[0], sizeof(struct in6_addr)) == 0)
++  (__builtin_memcmp(__bionic_in6((a)), __bionic_in6((b)), sizeof(struct in6_addr)) == 0)
+ 
+ #define INET6_ADDRSTRLEN 46
+ 
+diff --git i/libc/include/paths.h w/libc/include/paths.h
+--- i/libc/include/paths.h
++++ w/libc/include/paths.h
+@@ -65,4 +65,43 @@
+ /** Path to the calling process' tty. */
+ #define _PATH_TTY "/dev/tty"
+ 
++/*
++ * joe Linux: the rest of glibc's paths, which programs written for Linux
++ * use without checking that they are defined. utmp.h has the accounting
++ * files'.
++ */
++
++/** Path to the list of login shells. */
++#define _PATH_SHELLS "/etc/shells"
++
++/** Path to the file whose existence stops logins by anyone but root. */
++#define _PATH_NOLOGIN "/etc/nologin"
++
++/** Path to the directory of mailboxes. */
++#define _PATH_MAILDIR "/var/mail"
++
++/** Path to the manual pages. */
++#define _PATH_MAN "/usr/share/man"
++
++/** Path to the mail transfer agent. */
++#define _PATH_SENDMAIL "/usr/sbin/sendmail"
++
++/** Search path with the system programs, for root. */
++#define _PATH_STDPATH "/usr/bin:/bin:/usr/sbin:/sbin"
++
++/** Path to the editor programs start when the user names none. */
++#define _PATH_VI "/usr/bin/vi"
++
++/** Path to physical memory. */
++#define _PATH_MEM "/dev/mem"
++
++/** Path to kernel virtual memory. */
++#define _PATH_KMEM "/dev/kmem"
++
++/** Directories for temporary files and the system's run-time state. */
++#define _PATH_TMP "/tmp/"
++#define _PATH_VARTMP "/var/tmp/"
++#define _PATH_VARRUN "/var/run/"
++#define _PATH_VARDB "/var/db/"
++
+ __END_DECLS
+diff --git i/libc/include/sys/types.h w/libc/include/sys/types.h
+--- i/libc/include/sys/types.h
++++ w/libc/include/sys/types.h
+@@ -131,6 +131,10 @@
+ typedef unsigned int        uint_t;
+ /** BSD synonym for unsigned int that's always exposed by historical accident. */
+ typedef unsigned int        uint;
++/** BSD synonym for unsigned short, as glibc and musl have it (joe Linux). */
++typedef unsigned short      ushort;
++/** BSD synonym for unsigned long, as glibc and musl have it (joe Linux). */
++typedef unsigned long       ulong;
+ 
+ /** BSD synonym for unsigned char that's always exposed by historical accident. */
+ typedef unsigned char  u_char;
+diff --git i/libc/kernel/android/scsi/scsi/sg.h w/libc/kernel/android/scsi/scsi/sg.h
+--- i/libc/kernel/android/scsi/scsi/sg.h
++++ w/libc/kernel/android/scsi/scsi/sg.h
+@@ -20,7 +20,7 @@
+   unsigned int dxfer_len;
+   void  * dxferp;
+   unsigned char  * cmdp;
+-  void  * sbp;
++  unsigned char  * sbp;
+   unsigned int timeout;
+   unsigned int flags;
+   int pack_id;

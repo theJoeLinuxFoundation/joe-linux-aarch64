@@ -1,0 +1,20 @@
+# Checks a new deployment once everything else has started. It does nothing
+# unless the boot loader is counting this boot's attempts (dave reads
+# LoaderBootCountPath); then it checks the deployment and marks its boot
+# entry good. If the check fails, the machine reboots: after three failed
+# attempts systemd-boot returns to the previously chosen deployment by
+# itself. It also publishes what `dave status` shows to users without root.
+[service]
+name = "dave-boot-check"
+exec = ["/usr/bin/dave", "boot-check"]
+type = "oneshot"
+failure-action = "reboot"
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after-all = true
+
+[readiness]
+type = "none"

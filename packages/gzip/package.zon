@@ -1,0 +1,11 @@
+.{
+    .name = "gzip",
+    .version = "1.15",
+    .release = 3,
+    .description = "Programs for compressing and decompressing gzip files",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/gzip/gzip-1.15.tar.xz", .sha256 = "9aa0cc780dec156b8282844833b342ab7cb08c25d2cd9a1869cdd0df31deff48" },
+    },
+    .depends = .{ "bionic", "bash" },
+}

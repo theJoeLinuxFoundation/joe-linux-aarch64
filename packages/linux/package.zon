@@ -1,0 +1,17 @@
+.{
+    .name = "linux",
+    .version = "7.3.1",
+    .release = 1,
+    .description = "The Linux kernel and its modules",
+    .license = "GPL-2.0-only",
+    .sources = .{
+        .{ .url = "https://www.kernel.org/pub/linux/kernel/v7.x/linux-7.3.1.tar.xz", .sha256 = "fa595aad93734f829c963c2a90ef7c3673224fd7fdae7b49406e397cde2de231" },
+    },
+    .depends = .{"kmod"},
+    // The compiler is the build root's LLVM. bc computes the timer constants,
+    // flex and bison make the parsers of Kconfig and dtc, perl generates
+    // arm64's SHA-256, SHA-512 and Poly1305 assembly, openssl's libcrypto is
+    // linked into the certificate tool (certs/extract-cert), util-linux's
+    // hexdump pads the EFI_ZBOOT payload, and kmod's depmod runs on install.
+    .build_depends = .{ "bc", "flex", "bison", "perl", "openssl", "util-linux", "kmod" },
+}

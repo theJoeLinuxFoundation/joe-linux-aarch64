@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SECURITY_JOE
+	bool "joe Linux security module"
+	depends on SECURITY && FS_VERITY
+	select SECURITY_PATH
+	select SECURITYFS
+	select CRYPTO
+	select CRYPTO_SIG
+	select CRYPTO_ECDSA
+	select CRYPTO_LIB_SHA256
+	help
+	  Confines privileged processes: they may execute only sealed code
+	  (fs-verity protected files signed by a key built into this kernel),
+	  may not create executable memory at run time, and may perform only
+	  the operations their executable declares.
+
+	  Unprivileged processes are not affected.
+
+config SECURITY_JOE_ENFORCE
+	bool "Enforce by default"
+	depends on SECURITY_JOE
+	help
+	  Deny violations instead of only logging them. Without this the
+	  module enforces only when booted with "joe=enforce" or after 1 is
+	  written to /sys/kernel/security/joe/enforce.

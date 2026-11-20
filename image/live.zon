@@ -1,0 +1,38 @@
+// The installation medium: an ISO that boots 64-bit Arm servers with UEFI
+// from a CD or a USB stick into a live console system (joe-live), from which
+// `dave install-system` installs joe-base onto a disk, from the packages on
+// the medium itself.
+//
+//   dave image build image/live.zon --repo joe,DIR,URL,KEY --out joe-live.iso
+//
+// URL is the repository installed systems (and the live system) take their
+// packages from afterwards. --test adds a root prompt on the serial console,
+// to the live system and to what it installs.
+.{
+    .name = "joe-live",
+    .format = .iso,
+    .packages = .{ "joe-base", "joe-live" },
+    // dynamod-init, the initramfs's init, in its live mode: it finds the
+    // medium by label, copies its root image into memory, puts a writable
+    // layer in memory over it and starts the live system from that.
+    .cmdline = "dynamod.live dynamod.media=LABEL=JOE_LIVE dynamod.squashfs=/joe/root.squashfs rootwait",
+    .iso = .{
+        .label = "JOE_LIVE",
+        .initrd = .{
+            // dynamod-init, and blkid (util-linux) to find the medium by its
+            // label. The kernel has every driver the medium needs built in,
+            // so there are no modules. image/initrd/init is dynamod-init.
+            .packages = .{ "joe-filesystem", "bionic", "dynamod", "util-linux" },
+            .overlay = "initrd",
+            // Packages are whole; in memory, at every boot of the medium, the
+            // rest of them is space for nothing.
+            .remove = .{
+                "usr/include",      "usr/share/man",      "usr/share/info",
+                "usr/share/doc",    "usr/share/locale",   "usr/share/bash-completion",
+                "usr/lib/pkgconfig", "usr/share/zoneinfo", "usr/share/misc/magic.mgc",
+                "usr/lib/*.a",      "usr/include/c++",
+            },
+        },
+        .payload = .{"joe-base"},
+    },
+}

@@ -1,0 +1,12 @@
+.{
+    .name = "packaging",
+    .version = "26.3",
+    .release = 2,
+    .description = "Core utilities for Python packages",
+    .license = "Apache-2.0 OR BSD-2-Clause",
+    .sources = .{
+        .{ .url = "https://files.pythonhosted.org/packages/source/p/packaging/packaging-26.3.tar.gz", .sha256 = "94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79" },
+    },
+    .depends = .{"python"},
+    .build_depends = .{ "python", "flit-core" },
+}

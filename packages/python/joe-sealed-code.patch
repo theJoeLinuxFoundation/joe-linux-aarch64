@@ -1,0 +1,98 @@
+joe Linux: a privileged Python runs only sealed code files.
+
+The script named on the command line, and every module the import system
+loads (source or cached bytecode, through io.open_code), is checked with the
+joe security module before it is run. Code given with -c or typed
+interactively is not a file and is not affected. Bytecode caches written at
+run time are not sealed, so a privileged process recompiles from the sealed
+source instead of trusting them. See packages/linux/joe-lsm/joe.c.
+
+--- a/Objects/fileobject.c	2026-10-25 18:57:51.000000000 +0200
++++ b/Objects/fileobject.c	2026-11-12 20:18:09.072256214 +0200
+@@ -497,6 +497,57 @@
+     return 0;
+ }
+ 
++/* joe Linux. Before running code from a file, ask the joe security module
++   whether this process may: a privileged process may run only sealed files.
++   The module answers a request no file system implements, so the only
++   refusal is EACCES; ENOTTY (also what a kernel without the module returns)
++   and anything else mean there is no objection. */
++#ifdef __linux__
++#include <sys/ioctl.h>
++#define JOE_IOC_CHECK_SCRIPT 0xE701     /* _IO(0xE7, 0x01) */
++
++int
++_Py_joe_code_refused(int fd)
++{
++    int saved = errno;
++    int refused = ioctl(fd, JOE_IOC_CHECK_SCRIPT) < 0 && errno == EACCES;
++    errno = saved;
++    return refused;
++}
++#else
++int
++_Py_joe_code_refused(int fd)
++{
++    return 0;
++}
++#endif
++
++/* Applies the check to an open file object. Returns the object, or NULL with
++   PermissionError set after closing it. */
++static PyObject *
++joe_check_code_file(PyObject *f, PyObject *path)
++{
++    if (f == NULL) {
++        return NULL;
++    }
++    int fd = PyObject_AsFileDescriptor(f);
++    if (fd < 0) {
++        /* Not backed by a descriptor (a hook returned an in-memory stream). */
++        PyErr_Clear();
++        return f;
++    }
++    if (!_Py_joe_code_refused(fd)) {
++        return f;
++    }
++    PyObject *res = PyObject_CallMethodNoArgs(f, &_Py_ID(close));
++    Py_XDECREF(res);
++    PyErr_Clear();
++    Py_DECREF(f);
++    errno = EACCES;
++    PyErr_SetFromErrnoWithFilenameObject(PyExc_PermissionError, path);
++    return NULL;
++}
++
+ PyObject *
+ PyFile_OpenCodeObject(PyObject *path)
+ {
+@@ -519,7 +570,8 @@
+         }
+     }
+ 
+-    return f;
++    /* Every module the import system loads from a file comes through here. */
++    return joe_check_code_file(f, path);
+ }
+ 
+ PyObject *
+--- a/Modules/main.c	2026-10-25 18:57:51.000000000 +0200
++++ b/Modules/main.c	2026-11-12 20:18:09.072289147 +0200
+@@ -409,6 +409,16 @@
+         return 2;
+     }
+ 
++    /* joe Linux: a privileged Python runs only sealed script files. */
++    extern int _Py_joe_code_refused(int);
++    if (_Py_joe_code_refused(fileno(fp))) {
++        fclose(fp);
++        PySys_FormatStderr("%S: can't run %R: not sealed; "
++                           "a privileged Python runs only sealed code\n",
++                           program_name, filename);
++        return 126;
++    }
++
+     if (skip_source_first_line) {
+         int ch;
+         /* Push back first newline so line numbers remain the same */

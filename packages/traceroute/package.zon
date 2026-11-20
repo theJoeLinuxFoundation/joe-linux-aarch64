@@ -1,0 +1,18 @@
+.{
+    .name = "traceroute",
+    .version = "2.1.6",
+    .release = 1,
+    .description = "Traces the route packets take to a network host",
+    .license = "GPL-2.0-or-later AND LGPL-2.1-or-later",
+    .sources = .{
+        // The book's MD5 checks it.
+        .{ .url = "https://downloads.sourceforge.net/traceroute/traceroute-2.1.6.tar.gz", .sha256 = "9ccef9cdb9d7a98ff7fbf93f79ebd0e48881664b525c4b232a0fcec7dcb9db5e" },
+    },
+    // Not set-uid: the default UDP probes and the unprivileged ICMP method
+    // need no privilege; -I/-T with raw sockets need root.
+    .depends = .{"bionic"},
+    // inetutils shipped a traceroute of its own until release 4; this makes
+    // the resolver take that inetutils with it, so the two are never
+    // installed with the same file.
+    .conflicts = .{"inetutils <2.8-r4"},
+}

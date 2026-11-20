@@ -1,0 +1,421 @@
+joe Linux: POSIX shared memory (shm_open, shm_unlink: files in /dev/shm) and message queues
+(<mqueue.h>), which glibc and musl have and bionic lacks; util-linux uses them.
+
+diff --git i/libc/Android.bp w/libc/Android.bp
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1099,6 +1099,7 @@
+         "bionic/joe_strftime_z.cpp",
+         "bionic/joe_shadow.cpp",
+         "bionic/joe_strverscmp.cpp",
++        "bionic/joe_posix_ipc.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",
+diff --git i/libc/SYSCALLS.TXT w/libc/SYSCALLS.TXT
+--- i/libc/SYSCALLS.TXT
++++ w/libc/SYSCALLS.TXT
+@@ -129,6 +129,13 @@
+ fanotify_mark(int, unsigned int, uint64_t, int, const char*) all
+ name_to_handle_at(int, const char*, struct file_handle*, int*, int) all
+ open_by_handle_at(int, struct file_handle*, int) all
++# joe Linux: POSIX message queues (bionic/joe_posix_ipc.cpp).
++__mq_open:mq_open(const char*, int, mode_t, struct mq_attr*) all
++__mq_unlink:mq_unlink(const char*) all
++__mq_notify:mq_notify(int, const struct sigevent*) all
++__mq_getsetattr:mq_getsetattr(int, const struct mq_attr*, struct mq_attr*) all
++mq_timedsend(int, const char*, size_t, unsigned int, const struct timespec*) all
++mq_timedreceive(int, char*, size_t, unsigned int*, const struct timespec*) all
+ munmap(void*, size_t)  all
+ msync(const void*, size_t, int)    all
+ mprotect(const void*, size_t, int)  all
+diff --git i/libc/bionic/joe_posix_ipc.cpp w/libc/bionic/joe_posix_ipc.cpp
+new file mode 100644
+--- /dev/null
++++ w/libc/bionic/joe_posix_ipc.cpp
+@@ -0,0 +1,205 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++// joe Linux: POSIX shared memory and message queues, which glibc and musl
++// have and Android, which has its own shared memory and no use for message
++// queues, does not.
++//
++// A shared memory object is a file in /dev/shm, a tmpfs, as in glibc and
++// musl. A message queue is the kernel's; its names here begin with a slash,
++// the kernel's do not.
++
++#include <errno.h>
++#include <fcntl.h>
++#include <limits.h>
++#include <mqueue.h>
++#include <pthread.h>
++#include <signal.h>
++#include <stdarg.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/mman.h>
++#include <sys/socket.h>
++#include <unistd.h>
++
++#include "private/ErrnoRestorer.h"
++
++extern "C" int __mq_open(const char* name, int flags, mode_t mode, mq_attr* attr);
++extern "C" int __mq_unlink(const char* name);
++extern "C" int __mq_notify(mqd_t mq, const sigevent* event);
++extern "C" int __mq_getsetattr(mqd_t mq, const mq_attr* new_attr, mq_attr* old_attr);
++
++static constexpr char kShmDir[] = "/dev/shm/";
++using ShmPath = char[sizeof(kShmDir) + NAME_MAX];
++
++// The file of the shared memory object `name`: leading slashes are dropped,
++// and what is left must be a file name, as glibc requires.
++static bool shm_path(const char* name, ShmPath& path) {
++  while (*name == '/') name++;
++  size_t length = strnlen(name, NAME_MAX + 1);
++  if (length > NAME_MAX) {
++    errno = ENAMETOOLONG;
++    return false;
++  }
++  if (length == 0 || strchr(name, '/') != nullptr || strcmp(name, ".") == 0 ||
++      strcmp(name, "..") == 0) {
++    errno = EINVAL;
++    return false;
++  }
++  memcpy(path, kShmDir, sizeof(kShmDir) - 1);
++  memcpy(path + sizeof(kShmDir) - 1, name, length + 1);
++  return true;
++}
++
++int shm_open(const char* name, int flags, mode_t mode) {
++  ShmPath path;
++  if (!shm_path(name, path)) return -1;
++  return open(path, flags | O_NOFOLLOW | O_CLOEXEC, mode);
++}
++
++int shm_unlink(const char* name) {
++  ShmPath path;
++  if (!shm_path(name, path)) return -1;
++  return unlink(path);
++}
++
++mqd_t mq_open(const char* name, int flags, ...) {
++  if (name[0] != '/') {
++    errno = EINVAL;
++    return -1;
++  }
++  mode_t mode = 0;
++  mq_attr* attr = nullptr;
++  if ((flags & O_CREAT) != 0) {
++    va_list args;
++    va_start(args, flags);
++    mode = va_arg(args, mode_t);
++    attr = va_arg(args, mq_attr*);
++    va_end(args);
++  }
++  return __mq_open(name + 1, flags, mode, attr);
++}
++
++int mq_close(mqd_t mq) {
++  return close(mq);
++}
++
++int mq_unlink(const char* name) {
++  if (name[0] != '/') {
++    errno = EINVAL;
++    return -1;
++  }
++  int result = __mq_unlink(name + 1);
++  // POSIX's error for a queue the caller may not remove, as in glibc.
++  if (result == -1 && errno == EPERM) errno = EACCES;
++  return result;
++}
++
++int mq_getattr(mqd_t mq, mq_attr* attr) {
++  return __mq_getsetattr(mq, nullptr, attr);
++}
++
++int mq_setattr(mqd_t mq, const mq_attr* new_attr, mq_attr* old_attr) {
++  return __mq_getsetattr(mq, new_attr, old_attr);
++}
++
++int mq_send(mqd_t mq, const char* msg, size_t length, unsigned int priority) {
++  return mq_timedsend(mq, msg, length, priority, nullptr);
++}
++
++ssize_t mq_receive(mqd_t mq, char* msg, size_t length, unsigned int* priority) {
++  return mq_timedreceive(mq, msg, length, priority, nullptr);
++}
++
++// SIGEV_THREAD: the kernel cannot start a thread, so, as glibc and musl do,
++// it is given a netlink socket instead, and sends a message on it when the
++// queue is no longer empty; a thread of ours waits for that message and
++// calls the function. The thread is started after the kernel has accepted
++// the socket, so that a failure needs no thread to be stopped.
++struct MqNotification {
++  int socket;
++  void (*function)(sigval);
++  sigval value;
++};
++
++static void* mq_notification_thread(void* arg) {
++  MqNotification n = *static_cast<MqNotification*>(arg);
++  free(arg);
++  unsigned char cookie[NOTIFY_COOKIE_LEN];
++  ssize_t received;
++  do {
++    received = recv(n.socket, cookie, sizeof(cookie), MSG_NOSIGNAL | MSG_WAITALL);
++  } while (received == -1 && errno == EINTR);
++  close(n.socket);
++  // The kernel also writes when the notification is removed (NOTIFY_REMOVED).
++  if (received == sizeof(cookie) && cookie[NOTIFY_COOKIE_LEN - 1] == NOTIFY_WOKENUP) {
++    n.function(n.value);
++  }
++  return nullptr;
++}
++
++int mq_notify(mqd_t mq, const sigevent* event) {
++  if (event == nullptr || event->sigev_notify != SIGEV_THREAD) return __mq_notify(mq, event);
++  if (event->sigev_notify_function == nullptr) {
++    errno = EINVAL;
++    return -1;
++  }
++
++  int s = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC, 0);
++  if (s == -1) return -1;
++  // What the kernel sends back on the socket; ours is all zeros.
++  static const unsigned char cookie[NOTIFY_COOKIE_LEN] = {};
++  sigevent kernel_event = {};
++  kernel_event.sigev_notify = SIGEV_THREAD;
++  kernel_event.sigev_signo = s;
++  kernel_event.sigev_value.sival_ptr = const_cast<unsigned char*>(cookie);
++  if (__mq_notify(mq, &kernel_event) == -1) {
++    ErrnoRestorer errno_restorer;
++    close(s);
++    return -1;
++  }
++
++  pthread_attr_t attr;
++  if (event->sigev_notify_attributes == nullptr) {
++    pthread_attr_init(&attr);
++  } else {
++    attr = *static_cast<pthread_attr_t*>(event->sigev_notify_attributes);
++  }
++  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
++
++  MqNotification* n = static_cast<MqNotification*>(malloc(sizeof(MqNotification)));
++  int error = ENOMEM;
++  if (n != nullptr) {
++    *n = {s, event->sigev_notify_function, event->sigev_value};
++    pthread_t thread;
++    error = pthread_create(&thread, &attr, mq_notification_thread, n);
++  }
++  if (error != 0) {
++    // Nothing would wait for the kernel's message: take the notification back.
++    __mq_notify(mq, nullptr);
++    close(s);
++    free(n);
++    errno = (error == EAGAIN) ? EAGAIN : ENOMEM;
++    return -1;
++  }
++  return 0;
++}
+diff --git i/libc/include/mqueue.h w/libc/include/mqueue.h
+new file mode 100644
+--- /dev/null
++++ w/libc/include/mqueue.h
+@@ -0,0 +1,127 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++#pragma once
++
++/**
++ * @file mqueue.h
++ * @brief POSIX message queues (joe Linux, as glibc and musl have them).
++ */
++
++#include <sys/cdefs.h>
++
++#include <fcntl.h>
++#include <signal.h>
++#include <sys/types.h>
++#include <time.h>
++#include <linux/mqueue.h>
++
++__BEGIN_DECLS
++
++/** A message queue descriptor: a file descriptor. */
++typedef int mqd_t;
++
++/**
++ * [mq_open(3)](https://man7.org/linux/man-pages/man3/mq_open.3.html)
++ * opens the message queue `__name`, which begins with a slash. With
++ * `O_CREAT`, two more arguments are the new queue's mode and its attributes
++ * (a `struct mq_attr*`, or NULL for the defaults).
++ *
++ * Returns a message queue descriptor on success and returns -1 and sets `errno` on failure.
++ */
++mqd_t mq_open(const char* _Nonnull __name, int __flags, ...);
++
++/**
++ * [mq_close(3)](https://man7.org/linux/man-pages/man3/mq_close.3.html)
++ * closes a message queue descriptor.
++ *
++ * Returns 0 on success and returns -1 and sets `errno` on failure.
++ */
++int mq_close(mqd_t __mq);
++
++/**
++ * [mq_unlink(3)](https://man7.org/linux/man-pages/man3/mq_unlink.3.html)
++ * removes the message queue `__name`; it goes when the last descriptor is closed.
++ *
++ * Returns 0 on success and returns -1 and sets `errno` on failure.
++ */
++int mq_unlink(const char* _Nonnull __name);
++
++/**
++ * [mq_getattr(3)](https://man7.org/linux/man-pages/man3/mq_getattr.3.html)
++ * gets a message queue's attributes.
++ *
++ * Returns 0 on success and returns -1 and sets `errno` on failure.
++ */
++int mq_getattr(mqd_t __mq, struct mq_attr* _Nonnull __attr);
++
++/**
++ * [mq_setattr(3)](https://man7.org/linux/man-pages/man3/mq_setattr.3.html)
++ * sets a message queue descriptor's flags (only `O_NONBLOCK`), returning the
++ * old attributes in `__old_attr` if it is not NULL.
++ *
++ * Returns 0 on success and returns -1 and sets `errno` on failure.
++ */
++int mq_setattr(mqd_t __mq, const struct mq_attr* _Nonnull __new_attr, struct mq_attr* _Nullable __old_attr);
++
++/**
++ * [mq_notify(3)](https://man7.org/linux/man-pages/man3/mq_notify.3.html)
++ * asks to be notified, once, when a message arrives in an empty queue; NULL
++ * cancels the request.
++ *
++ * Returns 0 on success and returns -1 and sets `errno` on failure.
++ */
++int mq_notify(mqd_t __mq, const struct sigevent* _Nullable __event);
++
++/**
++ * [mq_send(3)](https://man7.org/linux/man-pages/man3/mq_send.3.html)
++ * adds a message to a queue.
++ *
++ * Returns 0 on success and returns -1 and sets `errno` on failure.
++ */
++int mq_send(mqd_t __mq, const char* _Nonnull __msg, size_t __length, unsigned int __priority);
++
++/**
++ * [mq_timedsend(3)](https://man7.org/linux/man-pages/man3/mq_timedsend.3.html)
++ * is mq_send() waiting at most until `__timeout` (CLOCK_REALTIME) for room.
++ *
++ * Returns 0 on success and returns -1 and sets `errno` on failure.
++ */
++int mq_timedsend(mqd_t __mq, const char* _Nonnull __msg, size_t __length, unsigned int __priority, const struct timespec* _Nullable __timeout);
++
++/**
++ * [mq_receive(3)](https://man7.org/linux/man-pages/man3/mq_receive.3.html)
++ * takes the oldest message of the highest priority from a queue.
++ *
++ * Returns the message's length on success and returns -1 and sets `errno` on failure.
++ */
++ssize_t mq_receive(mqd_t __mq, char* _Nonnull __msg, size_t __length, unsigned int* _Nullable __priority);
++
++/**
++ * [mq_timedreceive(3)](https://man7.org/linux/man-pages/man3/mq_timedreceive.3.html)
++ * is mq_receive() waiting at most until `__timeout` (CLOCK_REALTIME) for a message.
++ *
++ * Returns the message's length on success and returns -1 and sets `errno` on failure.
++ */
++ssize_t mq_timedreceive(mqd_t __mq, char* _Nonnull __msg, size_t __length, unsigned int* _Nullable __priority, const struct timespec* _Nullable __timeout);
++
++__END_DECLS
+diff --git i/libc/include/sys/mman.h w/libc/include/sys/mman.h
+--- i/libc/include/sys/mman.h
++++ w/libc/include/sys/mman.h
+@@ -234,6 +234,22 @@
+ int mseal(void* _Nonnull __addr, size_t __size, unsigned long __flags) __INTRODUCED_IN(36);
+ #endif
+ 
++/**
++ * [shm_open(3)](https://man7.org/linux/man-pages/man3/shm_open.3.html)
++ * opens the POSIX shared memory object `__name`, a file in /dev/shm (joe Linux).
++ *
++ * Returns a file descriptor on success and returns -1 and sets `errno` on failure.
++ */
++int shm_open(const char* _Nonnull __name, int __flags, mode_t __mode);
++
++/**
++ * [shm_unlink(3)](https://man7.org/linux/man-pages/man3/shm_unlink.3.html)
++ * removes the POSIX shared memory object `__name` (joe Linux).
++ *
++ * Returns 0 on success and returns -1 and sets `errno` on failure.
++ */
++int shm_unlink(const char* _Nonnull __name);
++
+ #if defined(__USE_GNU)
+ /**
+  * [cachestat(2)](https://man7.org/linux/man-pages/man2/cachestat.2.html)
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1857,6 +1857,18 @@
+     fanotify_mark;
+     name_to_handle_at;
+     open_by_handle_at;
++    mq_close;
++    mq_getattr;
++    mq_notify;
++    mq_open;
++    mq_receive;
++    mq_send;
++    mq_setattr;
++    mq_timedreceive;
++    mq_timedsend;
++    mq_unlink;
++    shm_open;
++    shm_unlink;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {

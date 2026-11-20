@@ -1,0 +1,15 @@
+# The AOSP repositories bionic is built from, at android-17.0.0_r1: the path
+# each has in an AOSP checkout, and its commit. The sources are git archive
+# tars named aosp-<path with / as ->-<commit>.tar (see bootstrap/sources).
+bionic 06356e41c5ed7b12220b24c05ba4fdb873b126a7
+external/scudo 15715589eebe155c799ce6fe27005bc8775b86ad
+external/gwp_asan 54826e96fc883088ac6cfc80240c094e671d6e24
+external/llvm-libc 95e08d1d4ccefa41921bc00a369008f7618b7101
+external/arm-optimized-routines 498b3de1a06e8cd87b2f9d49d1d8a23ebba5cc5a
+external/google-highway 94b90ab8cb9df9b3719a64751ea2fcb62caa3391
+external/fmtlib e3bef0ad2e9d4ea38ba3b4b2b59e0514f7025fed
+system/core 545d2487e38192a2ce25040897ced877cf6b4f53
+system/logging d35ba620451b28512f46ebb5421f783fd77968d5
+system/libbase fef4173e19d97cd4b4fc09a06bccbf800d0d3937
+system/libprocinfo b58259e79c58deb1132e11d74ea90a2dc441d84f
+system/libziparchive bdd41f9c99400f241363b035eb64ad3d5f063c82

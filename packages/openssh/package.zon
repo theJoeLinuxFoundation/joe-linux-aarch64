@@ -1,0 +1,18 @@
+.{
+    .name = "openssh",
+    .version = "10.6p2",
+    .release = 2,
+    .description = "Secure shell client and server, with scp and sftp",
+    .license = "BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND SSH-OpenSSH",
+    .sources = .{
+        .{ .url = "https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.6p2.tar.gz", .sha256 = "9ae44872090cf2f06b3cf9ff147e7f16f309671340763ed2f99248398ae29d5b" },
+    },
+    .depends = .{ "bionic", "openssl", "zlib", "libxcrypt", "linux-pam" },
+    .build_depends = .{"pkgconf"},
+    // Set-uid root. Run by an ordinary user, a program holds only what its
+    // seal declares (packages/linux/joe-lsm), so these declare all;
+    // narrower lists are rule 3's work.
+    .operations = .{
+        .{ .programs = .{ "usr/libexec/ssh-keysign" }, .allow = .{"all"} },
+    },
+}

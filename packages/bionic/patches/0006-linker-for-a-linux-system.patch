@@ -1,0 +1,75 @@
+joe Linux: The dynamic linker is /usr/lib/ld-bionic-aarch64.so.1, searches /usr/lib and /usr/local/lib,
+expects no linkerconfig and installs no debuggerd crash handler.
+
+diff --git i/linker/Android.bp w/linker/Android.bp
+index 8412dfa..75a3d0c 100644
+--- i/linker/Android.bp
++++ w/linker/Android.bp
+@@ -412,13 +412,11 @@ cc_defaults {
+     ],
+ 
+     target: {
++        // joe Linux: no debuggerd. The linker installs no crash handler,
++        // as AOSP's linux_bionic linker does not.
+         android: {
+-            srcs: [
+-                "linker_debuggerd_android.cpp",
+-            ],
+             static_libs: [
+-                "libc++demangle_noexcept",
+-                "libdebuggerd_handler_fallback",
++                "liblinker_debuggerd_stub",
+             ],
+         },
+         linux_bionic: {
+diff --git i/linker/linker.cpp w/linker/linker.cpp
+index 05f1a46..3e85baf 100644
+--- i/linker/linker.cpp
++++ w/linker/linker.cpp
+@@ -122,10 +122,11 @@ static const char* const kAsanVendorLibDir    = "/data/asan/vendor/lib";
+ 
+ static const char* const kAsanLibDirPrefix = "/data/asan";
+ 
++// joe Linux: libraries are in /usr/lib (and /lib, which is a link to it);
++// libraries an administrator builds go in /usr/local/lib.
+ static const char* const kDefaultLdPaths[] = {
+-  kSystemLibDir,
+-  kOdmLibDir,
+-  kVendorLibDir,
++  "/usr/lib",
++  "/usr/local/lib",
+   nullptr
+ };
+ 
+@@ -3590,10 +3591,9 @@ static std::string get_ld_config_file_vndk_path() {
+ 
+ bool is_linker_config_expected(const char* executable_path) {
+   // Do not raise message from a host environment which is expected to miss generated linker
+-  // configuration.
+-#if !defined(__ANDROID__)
++  // configuration. joe Linux is such an environment: it has no linkerconfig,
++  // and every program runs in the default namespace.
+   return false;
+-#endif
+ 
+   if (strcmp(executable_path, "/system/bin/init") == 0) {
+     // Generated linker configuration can be missed from processes executed
+diff --git i/linker/linker_main.cpp w/linker/linker_main.cpp
+index ce1337c..83b1b47 100644
+--- i/linker/linker_main.cpp
++++ w/linker/linker_main.cpp
+@@ -377,10 +377,11 @@ static ElfW(Addr) linker_main(KernelArgumentBlock& args, const char* exe_to_load
+   if (interp == nullptr) {
+     // This case can happen if the linker attempts to execute itself
+     // (e.g. "linker64 /system/bin/linker64").
+-#if defined(__LP64__)
+-#define DEFAULT_INTERP "/system/bin/linker64"
++// joe Linux's program interpreter, which clang writes into every executable.
++#if defined(__aarch64__)
++#define DEFAULT_INTERP "/usr/lib/ld-bionic-aarch64.so.1"
+ #else
+-#define DEFAULT_INTERP "/system/bin/linker"
++#error "joe Linux: no program interpreter path for this architecture"
+ #endif
+     interp = DEFAULT_INTERP;
+   }

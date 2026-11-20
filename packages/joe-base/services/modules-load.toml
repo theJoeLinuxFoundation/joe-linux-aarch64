@@ -1,0 +1,16 @@
+# Kernel modules that packages or the administrator ask for at boot, in
+# systemd's modules-load.d format. Hardware's own modules are loaded by udev.
+[service]
+name = "modules-load"
+supervisor = "early-boot"
+exec = ["/usr/lib/joe/modules-load"]
+type = "oneshot"
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["fstab-mount"]
+
+[readiness]
+type = "none"

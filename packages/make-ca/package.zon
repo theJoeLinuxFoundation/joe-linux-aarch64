@@ -1,0 +1,13 @@
+.{
+    .name = "make-ca",
+    .version = "1.16.1",
+    .release = 1,
+    .description = "System certificate store built from Mozilla's trusted root list, and the tool that maintains it",
+    .license = "(MIT OR GPL-3.0-or-later) AND MPL-2.0",
+    .sources = .{
+        .{ .url = "https://github.com/lfs-book/make-ca/archive/v1.16.1/make-ca-1.16.1.tar.gz", .sha256 = "98c7e6fded1938b972d0177b5d5e925d318be87f84ee9e4cad680656a8c29414" },
+        .{ .url = "https://hg-edge.mozilla.org/projects/nss/raw-file/NSS_3_133_RTM/lib/ckfw/builtins/certdata.txt", .sha256 = "3ec2b4d240dc12c747eaf450061db84af757c483bbda302f9e29ceb5d70be510", .file = "certdata-NSS_3_133_RTM.txt" },
+    },
+    .depends = .{ "bash", "coreutils", "diffutils", "findutils", "gawk", "grep", "sed", "openssl", "p11-kit" },
+    .build_depends = .{"perl"},
+}

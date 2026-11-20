@@ -1,0 +1,85 @@
+joe Linux: strftime_z(3), which completes the NetBSD timezone_t functions bionic has, so that
+gnulib does not take the half of them it finds for all of them.
+
+diff --git i/libc/bionic/joe_strftime_z.cpp w/libc/bionic/joe_strftime_z.cpp
+new file mode 100644
+index 0000000..7776698
+--- /dev/null
++++ w/libc/bionic/joe_strftime_z.cpp
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++// joe Linux: strftime_z(3). bionic has NetBSD's timezone_t functions,
++// tzalloc() and localtime_rz() among them, but not this one; gnulib, finding
++// the others, then expects functions of its own that it does not build, and
++// GNU programs fail to link. bionic's struct tm carries its zone's name and
++// offset, which are all %Z and %z print, so the time zone is not needed.
++
++#include <time.h>
++
++size_t strftime_z(timezone_t, char* buf, size_t n, const char* fmt, const struct tm* tm) {
++  return strftime(buf, n, fmt, tm);
++}
+diff --git i/libc/include/time.h w/libc/include/time.h
+index b15ca75..1a8ed98 100644
+--- i/libc/include/time.h
++++ w/libc/include/time.h
+@@ -236,6 +236,16 @@ struct tm* _Nullable localtime_r(const time_t* _Nonnull __t, struct tm* _Nonnull
+ struct tm* _Nullable localtime_rz(timezone_t _Nonnull __tz, const time_t* _Nonnull __t, struct tm* _Nonnull __tm) __INTRODUCED_IN(35);
+ #endif
+ 
++/**
++ * strftime_z(3) is strftime() for a broken-down time made by localtime_rz()
++ * with the given timezone, as in NetBSD, whose timezone_t functions these
++ * are. bionic's `struct tm` carries its zone's name and offset, which are
++ * what %Z and %z print, so `tz` itself is not needed and may be null.
++ *
++ * joe Linux: not in Android's bionic.
++ */
++size_t strftime_z(timezone_t _Nullable __tz, char* _Nonnull __buf, size_t __n, const char* _Nonnull __fmt, const struct tm* _Nullable __tm) __strftimelike(4);
++
+ /**
+  * Inverse of localtime().
+  */
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1835,6 +1835,7 @@
+     pututxline;
+     setutxent;
+     strerrordesc_np;
++    strftime_z;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
+diff --git i/libc/Android.bp w/libc/Android.bp
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1096,6 +1096,7 @@
+         "bionic/utime.cpp",
+         "bionic/utmp.cpp",
+         "bionic/joe_renamed.cpp",
++        "bionic/joe_strftime_z.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",

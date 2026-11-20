@@ -1,0 +1,146 @@
+joe Linux: real symbols for the functions bionic's headers declare under another name, so
+that configure scripts' link tests find them and gnulib does not declare them again.
+
+diff --git i/libc/bionic/joe_renamed.cpp w/libc/bionic/joe_renamed.cpp
+new file mode 100644
+index 0000000..521de29
+--- /dev/null
++++ w/libc/bionic/joe_renamed.cpp
+@@ -0,0 +1,100 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++// joe Linux: real symbols for the functions bionic's headers declare under
++// another function's name (__RENAME). Programs compiled against the headers
++// call the other function and never need these; they exist for what does
++// not read the headers: a configure script's link test ("checking for
++// posix_spawn_file_actions_addchdir... no" leads gnulib to declare the
++// function again, in a way that conflicts with bionic's declaration), and
++// dlsym(). Each calls the function its declaration is renamed to. They are
++// exported in the LIBC_JOE version of libc.map.txt.
++
++#include <malloc.h>
++#include <spawn.h>
++#include <string.h>
++#include <utmp.h>
++#include <utmpx.h>
++
++#define JOE_AS(name) __asm__(#name)
++
++extern "C" {
++
++int joe_posix_spawn_file_actions_addchdir(posix_spawn_file_actions_t* actions, const char* path)
++    JOE_AS(posix_spawn_file_actions_addchdir);
++int joe_posix_spawn_file_actions_addchdir(posix_spawn_file_actions_t* actions, const char* path) {
++  return posix_spawn_file_actions_addchdir_np(actions, path);
++}
++
++int joe_posix_spawn_file_actions_addfchdir(posix_spawn_file_actions_t* actions, int fd)
++    JOE_AS(posix_spawn_file_actions_addfchdir);
++int joe_posix_spawn_file_actions_addfchdir(posix_spawn_file_actions_t* actions, int fd) {
++  return posix_spawn_file_actions_addfchdir_np(actions, fd);
++}
++
++struct mallinfo2 joe_mallinfo2() JOE_AS(mallinfo2);
++struct mallinfo2 joe_mallinfo2() {
++  struct mallinfo m = mallinfo();
++  struct mallinfo2 m2;
++  static_assert(sizeof(m) == sizeof(m2), "On Android the struct mallinfo and struct mallinfo2 are the same");
++  memcpy(&m2, &m, sizeof(m2));
++  return m2;
++}
++
++const char* joe_strerrordesc_np(int error) JOE_AS(strerrordesc_np);
++const char* joe_strerrordesc_np(int error) {
++  return strerror(error);
++}
++
++// bionic keeps no utmp records: these do what the functions they are
++// renamed to do, which is nothing.
++void joe_setutxent() JOE_AS(setutxent);
++void joe_setutxent() {
++  setutent();
++}
++
++void joe_endutxent() JOE_AS(endutxent);
++void joe_endutxent() {
++  endutent();
++}
++
++struct utmpx* joe_getutxent() JOE_AS(getutxent);
++struct utmpx* joe_getutxent() {
++  return reinterpret_cast<struct utmpx*>(getutent());
++}
++
++struct utmpx* joe_getutxid(const struct utmpx*) JOE_AS(getutxid);
++struct utmpx* joe_getutxid(const struct utmpx*) {
++  return reinterpret_cast<struct utmpx*>(getutent());
++}
++
++struct utmpx* joe_getutxline(const struct utmpx*) JOE_AS(getutxline);
++struct utmpx* joe_getutxline(const struct utmpx*) {
++  return reinterpret_cast<struct utmpx*>(getutent());
++}
++
++struct utmpx* joe_pututxline(const struct utmpx* entry) JOE_AS(pututxline);
++struct utmpx* joe_pututxline(const struct utmpx* entry) {
++  return reinterpret_cast<struct utmpx*>(pututline(reinterpret_cast<const struct utmp*>(entry)));
++}
++
++}  // extern "C"
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1821,6 +1821,22 @@
+     wcswcs; # arm x86
+ } LIBC_Q;
+ 
++# joe Linux: functions bionic's headers declare under another name, exported
++# under their own names too (bionic/joe_renamed.cpp).
++LIBC_JOE { # introduced=37
++  global:
++    endutxent;
++    getutxent;
++    getutxid;
++    getutxline;
++    mallinfo2;
++    posix_spawn_file_actions_addchdir;
++    posix_spawn_file_actions_addfchdir;
++    pututxline;
++    setutxent;
++    strerrordesc_np;
++} LIBC_37;
++
+ LIBC_DEPRECATED {
+   global:
+     __system_property_wait_any;
+diff --git i/libc/Android.bp w/libc/Android.bp
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1095,6 +1095,7 @@
+         "bionic/usleep.cpp",
+         "bionic/utime.cpp",
+         "bionic/utmp.cpp",
++        "bionic/joe_renamed.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",

@@ -1,0 +1,11 @@
+.{
+    .name = "joe-release",
+    // The system revision X, then the stage of the release if it has one.
+    // dave orders "1alpha1" before "1", and "1" before "2". The name people
+    // see is composed from this and the kernel's and dave's versions; see
+    // build.sh.
+    .version = "1alpha1",
+    .release = 1,
+    .description = "joe Linux release identification",
+    .license = "MIT",
+}

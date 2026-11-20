@@ -1,0 +1,14 @@
+.{
+    .name = "tzdata",
+    .version = "2026f",
+    .release = 1,
+    .description = "Time zone rules for the world's clocks, from the IANA database",
+    .license = "LicenseRef-Public-Domain AND BSD-3-Clause",
+    .sources = .{
+        .{ .url = "https://www.iana.org/time-zones/repository/releases/tzdata2026f.tar.gz", .sha256 = "01b4a91cec5167ed48c11e8ab78f2048cead78ce94b0cafcad0ae8c5a3044d3d" },
+        // zic, the time zone compiler: glibc has one, bionic does not, so it
+        // is built from the same release's tzcode and used only here.
+        .{ .url = "https://www.iana.org/time-zones/repository/releases/tzcode2026f.tar.gz", .sha256 = "5a18da01393679ef2559214dc687563f7f3d05691f6f58b7fbc0166f3e796cd6" },
+    },
+    .build_depends = .{"bionic"},
+}

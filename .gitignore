@@ -1,0 +1,6 @@
+build/
+dave/.zig-cache/
+dave/zig-out/
+*.img
+*.dave
+__pycache__/

@@ -1,0 +1,12 @@
+.{
+    .name = "markupsafe",
+    .version = "3.0.4",
+    .release = 2,
+    .description = "Python module that escapes text for safe use in HTML and XML",
+    .license = "BSD-3-Clause",
+    .sources = .{
+        .{ .url = "https://pypi.org/packages/source/M/MarkupSafe/markupsafe-3.0.4.tar.gz", .sha256 = "2e9ad7dd851bf45fab9f75cbff4cb493fee9979e8d8c7c9c3ee119022518edd6" },
+    },
+    .depends = .{ "bionic", "python" },
+    .build_depends = .{ "python", "setuptools", "wheel" },
+}

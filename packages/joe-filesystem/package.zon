@@ -1,0 +1,7 @@
+.{
+    .name = "joe-filesystem",
+    .version = "0.1",
+    .release = 8,
+    .description = "The base directory layout and system accounts of joe Linux",
+    .license = "MIT",
+}

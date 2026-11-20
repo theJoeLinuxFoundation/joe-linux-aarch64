@@ -1,0 +1,69 @@
+# What the bootstrap builds from: FILE SHA256 URL. bootstrap/lib.sh's fetch
+# checks every file against its line before it is used.
+
+# Host tools (bootstrap/host-tools.sh).
+ninja-1.13.2.tar.gz 974d6b2f4eeefa25625d34da3cb36bdcebe7fbce40f4c16ac0835fd1c0cbae17 https://github.com/ninja-build/ninja/archive/v1.13.2/ninja-1.13.2.tar.gz
+cmake-4.4.5.tar.gz a0c54c88abb8078dd8eccadb717fc6bb194bf18e7d44c86309910288886e04e2 https://cmake.org/files/v4.4/cmake-4.4.5.tar.gz
+
+# The cross toolchain (bootstrap/stage1.sh).
+llvm-project-23.1.0.src.tar.xz ab1f0e3ec52448c33e8782eaf0422504b87c7b016b22514653ee0d8fcee479ff https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.0/llvm-project-23.1.0.src.tar.xz
+
+# bionic and the AOSP libraries its build uses, all at android-17.0.0_r1,
+# as `git archive` tars of the tagged commits.
+aosp-bionic-06356e41c5ed7b12220b24c05ba4fdb873b126a7.tar 8a7cc2d81f6bdcf617f3a93447f71d91b430e8d6b689f4f86baabe375cc0e9b5 git+https://android.googlesource.com/platform/bionic#06356e41c5ed7b12220b24c05ba4fdb873b126a7
+aosp-external-scudo-15715589eebe155c799ce6fe27005bc8775b86ad.tar 60bd7c8b1e83c9d35b79161501df3104b70b48e20268376f74bcd135ce9ab24c git+https://android.googlesource.com/platform/external/scudo#15715589eebe155c799ce6fe27005bc8775b86ad
+aosp-external-gwp_asan-54826e96fc883088ac6cfc80240c094e671d6e24.tar 6083e641c8130ee7917ba1e9bf9ae8c691d9a61c9440bf66f57987d4a5f34752 git+https://android.googlesource.com/platform/external/gwp_asan#54826e96fc883088ac6cfc80240c094e671d6e24
+aosp-external-llvm-libc-95e08d1d4ccefa41921bc00a369008f7618b7101.tar 64cef5493e0bff36f60473da02400a13f856499d061bcc0f4fbfb9a8fb77c9b1 git+https://android.googlesource.com/platform/external/llvm-libc#95e08d1d4ccefa41921bc00a369008f7618b7101
+aosp-external-arm-optimized-routines-498b3de1a06e8cd87b2f9d49d1d8a23ebba5cc5a.tar d601d528688185b8c510ec5adb76d3cf991960670b8e26a8248c7b2ddd0b46dd git+https://android.googlesource.com/platform/external/arm-optimized-routines#498b3de1a06e8cd87b2f9d49d1d8a23ebba5cc5a
+aosp-external-google-highway-94b90ab8cb9df9b3719a64751ea2fcb62caa3391.tar 8e36e7f5fd926fa292faac3418062846832f3d0ace40903283e95e5f987b0caf git+https://android.googlesource.com/platform/external/google-highway#94b90ab8cb9df9b3719a64751ea2fcb62caa3391
+aosp-external-fmtlib-e3bef0ad2e9d4ea38ba3b4b2b59e0514f7025fed.tar 9d2cd0c81c9b9bbee3febd19e92c887dc04c4b687e650a6408ad9c54026fc364 git+https://android.googlesource.com/platform/external/fmtlib#e3bef0ad2e9d4ea38ba3b4b2b59e0514f7025fed
+aosp-system-core-545d2487e38192a2ce25040897ced877cf6b4f53.tar d8f7d52c754e8230a9a28e377d25d0c89f503a0d4f88f5eb3b574834d3826824 git+https://android.googlesource.com/platform/system/core#545d2487e38192a2ce25040897ced877cf6b4f53
+aosp-system-logging-d35ba620451b28512f46ebb5421f783fd77968d5.tar 71c3ee633fbe1c786a347d53b34f7f885efe6805da848aae16b314926a3245f0 git+https://android.googlesource.com/platform/system/logging#d35ba620451b28512f46ebb5421f783fd77968d5
+aosp-system-libbase-fef4173e19d97cd4b4fc09a06bccbf800d0d3937.tar 013ba97621cf16e51861b0b72cde5af71b05c3e33686a780475955eb3ddcdb96 git+https://android.googlesource.com/platform/system/libbase#fef4173e19d97cd4b4fc09a06bccbf800d0d3937
+aosp-system-libprocinfo-b58259e79c58deb1132e11d74ea90a2dc441d84f.tar c1d3a84c555c2ca48a2e507870ee3a43a212ee972dc9ac970fdd90b231c5412e git+https://android.googlesource.com/platform/system/libprocinfo#b58259e79c58deb1132e11d74ea90a2dc441d84f
+aosp-system-libziparchive-bdd41f9c99400f241363b035eb64ad3d5f063c82.tar ff51dd0e0fd2ec67fdb2f1de70fb87c7b52d63a0435a86bd2182b60d9b396c8f git+https://android.googlesource.com/platform/system/libziparchive#bdd41f9c99400f241363b035eb64ad3d5f063c82
+
+# The Unicode Character Database, for bionic's character classes
+# (packages/bionic/overlay/unicode/gen.py).
+UCD-17.0.0.zip 2066d1909b2ea93916ce092da1c0ee4808ea3ef8407c94b4f14f5b7eb263d28e https://www.unicode.org/Public/17.0.0/ucd/UCD.zip
+
+# Stage 2's temporary tools, as Linux From Scratch (systemd, r13.1) has them.
+m4-1.4.21.tar.xz f25c6ab51548a73a75558742fb031e0625d6485fe5f9155949d6486a2408ab66 https://ftpmirror.gnu.org/m4/m4-1.4.21.tar.xz
+ncurses-6.6.tar.gz 355b4cbbed880b0381a04c46617b7656e362585d52e9cf84a67e2009b749ff11 https://invisible-mirror.net/archives/ncurses/ncurses-6.6.tar.gz
+bash-5.3.tar.gz 0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba https://ftpmirror.gnu.org/bash/bash-5.3.tar.gz
+coreutils-9.12.tar.xz a480198559733e9b3da999e90543ac6f888a2caa544d8d664c5a1f17e528e210 https://ftpmirror.gnu.org/coreutils/coreutils-9.12.tar.xz
+diffutils-3.12.tar.xz 7c8b7f9fc8609141fdea9cece85249d308624391ff61dedaf528fcb337727dfd https://ftpmirror.gnu.org/diffutils/diffutils-3.12.tar.xz
+file-5.48.tar.gz ed14656883b23a364b4057c05595d93252da9bc473d30106519519d0da141283 https://astron.com/pub/file/file-5.48.tar.gz
+findutils-4.11.0.tar.xz bfd19cb06cc71f3352d567e90284d8cdac02ac89774bbeadf0b533b0c11432fd https://ftpmirror.gnu.org/findutils/findutils-4.11.0.tar.xz
+gawk-5.4.1.tar.xz 07f6f7342b7febe4313fc2c2542ad93d64fe20ad8717200109f105a826f5fd37 https://ftpmirror.gnu.org/gawk/gawk-5.4.1.tar.xz
+grep-3.12.tar.xz 2649b27c0e90e632eadcd757be06c6e9a4f48d941de51e7c0f83ff76408a07b9 https://ftpmirror.gnu.org/grep/grep-3.12.tar.xz
+gzip-1.15.tar.xz 9aa0cc780dec156b8282844833b342ab7cb08c25d2cd9a1869cdd0df31deff48 https://ftpmirror.gnu.org/gzip/gzip-1.15.tar.xz
+make-4.4.1.tar.gz dd16fb1d67bfab79a72f5e8390735c49e3e8e70b4945a15ab1f81ddb78658fb3 https://ftpmirror.gnu.org/make/make-4.4.1.tar.gz
+patch-2.8.1.tar.xz 3240c7959c5347c8ed347e3c4201c0337bf4240d5cf09d68889e58eeaba30e17 https://ftpmirror.gnu.org/patch/patch-2.8.1.tar.xz
+sed-4.10.tar.xz b8e72182b2ec96a3574e2998c47b7aaa64cc20ce000d8e9ac313cc07cecf28c7 https://ftpmirror.gnu.org/sed/sed-4.10.tar.xz
+tar-1.35.tar.xz 4d62ff37342ec7aed748535323930c7cf94acf71c3591882b26a7ea50f3edc16 https://ftpmirror.gnu.org/tar/tar-1.35.tar.xz
+xz-5.8.4.tar.xz 4ce24038fd4221e0d13bc1a2de7a4db56e90b92b3bf75321f6c14be73f65de4b https://github.com/tukaani-project/xz/releases/download/v5.8.4/xz-5.8.4.tar.xz
+gettext-1.0.tar.xz 71132a3fb71e68245b8f2ac4e9e97137d3e5c02f415636eb508ae607bc01add7 https://ftpmirror.gnu.org/gettext/gettext-1.0.tar.xz
+bison-3.8.2.tar.xz 9bba0214ccf7f1079c5d59210045227bcf619519840ebfa80cd3849cff5a5bf2 https://ftpmirror.gnu.org/bison/bison-3.8.2.tar.xz
+perl-5.44.0.tar.xz 505cf43912e9480495c344c70260452e32aa2a73c546a026b3f100053b23ce91 https://www.cpan.org/src/5.0/perl-5.44.0.tar.xz
+zlib-1.4.tar.gz 02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584 https://zlib.net/fossils/zlib-1.4.tar.gz
+Python-3.15.2.tar.xz 8b5536d280142ecf6cdfe15d12a21ba1c65e300bbf7b28a8d0cdb849575797de https://www.python.org/ftp/python/3.15.2/Python-3.15.2.tar.xz
+texinfo-7.3.tar.xz 51f74eb0f51cfa9873b85264dfdd5d46e8957ec95b88f0fb762f63d9e164c72e https://ftpmirror.gnu.org/texinfo/texinfo-7.3.tar.xz
+util-linux-2.42.4.tar.xz fbd62a100ab7bb8746ba0661255c3c48185b1e9021507c624da01fbc696330ec https://www.kernel.org/pub/linux/utils/util-linux/v2.42/util-linux-2.42.4.tar.xz
+bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269 https://www.sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz
+zstd-1.5.7.tar.gz eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3 https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz
+
+# The Rust cross compiler (bootstrap/stage1.sh), and the stage0 compiler x.py
+# bootstraps from, as joe Linux's rust recipe has them.
+rustc-1.99.0-src.tar.xz cc41916a8c84f5d9ec4f55561b44e39f43b647b133f8a6f51be9ea13c83f7036 https://static.rust-lang.org/dist/rustc-1.99.0-src.tar.xz
+rustc-1.98.0-x86_64-unknown-linux-gnu.tar.xz 0e37cb339f447fc44d6d781073bacacebfdc5612f2600e4c7e84c266f5f3aced https://static.rust-lang.org/dist/2026-08-20/rustc-1.98.0-x86_64-unknown-linux-gnu.tar.xz
+rust-std-1.98.0-x86_64-unknown-linux-gnu.tar.xz f5022e6c95a5ad23cca2513dc8281200f585fa188de6370aa37b128a43f876a3 https://static.rust-lang.org/dist/2026-08-20/rust-std-1.98.0-x86_64-unknown-linux-gnu.tar.xz
+cargo-1.98.0-x86_64-unknown-linux-gnu.tar.xz 2f512d170d3dd23e16ababcda32ee2e6d5172d861a7af1f504e0b1e270cafab9 https://static.rust-lang.org/dist/2026-08-20/cargo-1.98.0-x86_64-unknown-linux-gnu.tar.xz
+rustc-1.98.0-aarch64-unknown-linux-gnu.tar.xz 00590657f2356d7163ca5ef295283523974c340fa21bb94b420ce794f29b358c https://static.rust-lang.org/dist/2026-08-20/rustc-1.98.0-aarch64-unknown-linux-gnu.tar.xz
+rust-std-1.98.0-aarch64-unknown-linux-gnu.tar.xz a36f7ac98af20ef0ba6368aace0345efabbebaef7962eba99f47190fd256162d https://static.rust-lang.org/dist/2026-08-20/rust-std-1.98.0-aarch64-unknown-linux-gnu.tar.xz
+cargo-1.98.0-aarch64-unknown-linux-gnu.tar.xz 5784379d73ac881d15a9e67eed2882cd58c747c276221c23cdf9aff37e015ff6 https://static.rust-lang.org/dist/2026-08-20/cargo-1.98.0-aarch64-unknown-linux-gnu.tar.xz
+
+# Host tools for images and the live medium (bootstrap/host-tools.sh).
+mtools-4.0.49.tar.bz2 6fe5193583d6e7c59da75e63d7234f76c0b07caf33b103894f46f66a871ffc9f https://ftp.gnu.org/gnu/mtools/mtools-4.0.49.tar.bz2
+xorriso-1.5.8.pl02.tar.gz b1455ecafbf0692ddafe1d71002a96f2ce2d77f4deae602678261ce033f97bc8 https://ftp.gnu.org/gnu/xorriso/xorriso-1.5.8.pl02.tar.gz
+squashfs-tools-4.7.5.tar.gz 547b7b7f4d2e44bf91b6fc554664850c69563701deab9fd9cd7e21f694c88ea6 https://github.com/plougher/squashfs-tools/releases/download/4.7.5/squashfs-tools-4.7.5.tar.gz

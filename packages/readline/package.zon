@@ -1,0 +1,14 @@
+.{
+    .name = "readline",
+    .version = "8.3",
+    .release = 3,
+    .description = "Library for command-line editing and history",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/readline/readline-8.3.tar.gz", .sha256 = "fe5383204467828cd495ee8d1d3c037a7eba1389c22bc6a041f627976f9061cc" },
+    },
+    // libreadline also needs libncursesw (ncurses) at run time. It is not listed
+    // because ncurses is built after readline, so the dependency could not be
+    // satisfied when readline is installed into the build root.
+    .depends = .{"bionic"},
+}

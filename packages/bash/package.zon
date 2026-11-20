@@ -1,0 +1,16 @@
+.{
+    .name = "bash",
+    .version = "5.3",
+    .release = 5,
+    .description = "The GNU Bourne-Again shell",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/bash/bash-5.3.tar.gz", .sha256 = "0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba" },
+    },
+    .depends = .{ "bionic", "readline", "ncurses" },
+    // A person's root shell holds all authority. What it runs that declares
+    // nothing, as most programs do, inherits it.
+    .operations = .{
+        .{ .programs = .{ "usr/bin/bash" }, .allow = .{"all"} },
+    },
+}

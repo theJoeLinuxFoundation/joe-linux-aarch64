@@ -1,0 +1,17 @@
+# A new deployment that never finishes booting must not hang forever: if the
+# boot check has not passed within ten minutes, dave restarts the machine at
+# once, and the boot loader counts the attempt as failed. Nothing waits for
+# this service; it exits early when the boot is not on trial.
+[service]
+name = "dave-boot-watchdog"
+exec = ["/usr/bin/dave", "boot-watchdog"]
+type = "simple"
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["fstab-mount"]
+
+[readiness]
+type = "none"

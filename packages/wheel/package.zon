@@ -1,0 +1,12 @@
+.{
+    .name = "wheel",
+    .version = "0.48.0",
+    .release = 2,
+    .description = "Command line tool for manipulating Python wheel files",
+    .license = "MIT",
+    .sources = .{
+        .{ .url = "https://pypi.org/packages/source/w/wheel/wheel-0.48.0.tar.gz", .sha256 = "94800765601e9171bf5d58d066e640662842bcedcbab982b2c90787a2c987322" },
+    },
+    .depends = .{ "python", "packaging" },
+    .build_depends = .{ "python", "flit-core" },
+}

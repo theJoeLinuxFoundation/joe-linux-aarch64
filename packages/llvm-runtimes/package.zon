@@ -1,0 +1,12 @@
+.{
+    .name = "llvm-runtimes",
+    .version = "23.1.0",
+    .release = 1,
+    .description = "LLVM's C++ standard library (libc++, with libc++abi) and the unwinder every program links",
+    .license = "Apache-2.0 WITH LLVM-exception",
+    .sources = .{
+        .{ .url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.0/llvm-project-23.1.0.src.tar.xz", .sha256 = "ab1f0e3ec52448c33e8782eaf0422504b87c7b016b22514653ee0d8fcee479ff" },
+    },
+    .depends = .{"bionic"},
+    .build_depends = .{ "python", "ninja", "cmake" },
+}

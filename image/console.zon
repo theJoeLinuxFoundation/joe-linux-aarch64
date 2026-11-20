@@ -1,0 +1,12 @@
+// The console system: joe-base and nothing else.
+//
+//   dave image build image/console.zon --test --repo joe,DIR,URL,KEY --out joe.img
+//
+// --test adds joe-test-console, which the automated tests need and no real
+// installation should have: root is logged in on the serial console. The
+// serial console needs no console= here: servers and QEMU's virt machine
+// describe theirs to the kernel (ACPI SPCR).
+.{
+    .name = "joe-console",
+    .packages = .{"joe-base"},
+}

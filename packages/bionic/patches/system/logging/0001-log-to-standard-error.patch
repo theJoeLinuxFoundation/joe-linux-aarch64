@@ -1,0 +1,21 @@
+joe Linux: liblog writes to standard error by default, as it does off Android; there is no logd.
+
+diff --git i/liblog/logger_write.cpp w/liblog/logger_write.cpp
+index 2e6b9e8..56ae8da 100644
+--- i/liblog/logger_write.cpp
++++ w/liblog/logger_write.cpp
+@@ -164,11 +164,10 @@ int32_t __android_log_get_minimum_priority() {
+   return minimum_log_priority;
+ }
+ 
+-#ifdef __ANDROID__
+-static __android_logger_function logger_function = __android_log_logd_logger;
+-#else
++// joe Linux: there is no logd. Messages go to standard error, as on other
++// Linux systems; a service's standard error is collected by its service
++// manager.
+ static __android_logger_function logger_function = __android_log_stderr_logger;
+-#endif
+ 
+ void __android_log_set_logger(__android_logger_function logger) {
+   logger_function = logger;

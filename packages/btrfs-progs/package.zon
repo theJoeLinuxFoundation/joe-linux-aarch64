@@ -1,0 +1,12 @@
+.{
+    .name = "btrfs-progs",
+    .version = "7.3",
+    .release = 1,
+    .description = "Administration and debugging tools for the btrfs file system",
+    .license = "GPL-2.0-only AND LGPL-2.1-or-later",
+    .sources = .{
+        .{ .url = "https://www.kernel.org/pub/linux/kernel/people/kdave/btrfs-progs/btrfs-progs-v7.3.tar.xz", .sha256 = "d37b63403d25fe025704c758e6a3da0979ae50c30c5f02aa78e4410e7b346e3a" },
+    },
+    .depends = .{ "bionic", "util-linux", "zlib", "zstd" },
+    .build_depends = .{"pkgconf"},
+}

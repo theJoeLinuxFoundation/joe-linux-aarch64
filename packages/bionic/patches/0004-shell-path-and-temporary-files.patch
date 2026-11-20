@@ -1,0 +1,50 @@
+joe Linux: /bin/sh, a Linux default PATH, and /tmp for temporary files.
+
+diff --git i/libc/bionic/tmpfile.cpp w/libc/bionic/tmpfile.cpp
+index 4d6a1fb..4d86aed 100644
+--- i/libc/bionic/tmpfile.cpp
++++ w/libc/bionic/tmpfile.cpp
+@@ -83,10 +83,9 @@ static FILE* __tmpfile_dir_legacy(const char* tmp_dir) {
+ }
+ 
+ const char* __get_TMPDIR() {
+-  // Use $TMPDIR if set, or fall back to /data/local/tmp otherwise.
+-  // Useless for apps, but good enough for the shell.
++  // Use $TMPDIR if set, or fall back to /tmp otherwise.
+   const char* tmpdir = getenv("TMPDIR");
+-  return (tmpdir == nullptr) ? "/data/local/tmp" : tmpdir;
++  return (tmpdir == nullptr) ? "/tmp" : tmpdir;
+ }
+ 
+ FILE* tmpfile() {
+@@ -107,8 +106,7 @@ char* tempnam(const char* dir, const char* prefix) {
+   if (tmpdir != nullptr) dir = tmpdir;
+ 
+   // If we still have no directory, we'll give you a default.
+-  // It's useless for apps, but good enough for the shell.
+-  if (dir == nullptr) dir = "/data/local/tmp";
++  if (dir == nullptr) dir = "/tmp";
+ 
+   // Default prefix?
+   if (prefix == nullptr) prefix = "tempnam.";
+diff --git i/libc/include/paths.h w/libc/include/paths.h
+index fbdaa76..a592bc7 100644
+--- i/libc/include/paths.h
++++ w/libc/include/paths.h
+@@ -41,14 +41,14 @@
+ __BEGIN_DECLS
+ 
+ /** Path to the default system shell. Historically the 'B' was to specify the Bourne shell. */
+-#define _PATH_BSHELL "/system/bin/sh"
++#define _PATH_BSHELL "/bin/sh"
+ 
+ /** Path to the system console. */
+ #define _PATH_CONSOLE "/dev/console"
+ 
+ /** Default shell search path. */
+ // TODO(b/369944471) Remove com.android.runtime support
+-#define _PATH_DEFPATH "/product/bin:/apex/com.android.runtime/bin:/apex/com.android.art/bin:/apex/com.android.virt/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/vendor/xbin"
++#define _PATH_DEFPATH "/usr/local/bin:/usr/bin"
+ 
+ /** Path to the directory containing device files. */
+ #define _PATH_DEV "/dev/"

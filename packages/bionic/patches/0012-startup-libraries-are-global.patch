@@ -1,0 +1,25 @@
+joe Linux: the libraries loaded with the executable are in the global group, as in glibc, so
+that plugins (perl and Python modules, PAM modules) find their host's symbols.
+
+diff --git i/linker/linker_main.cpp w/linker/linker_main.cpp
+--- i/linker/linker_main.cpp
++++ w/linker/linker_main.cpp
+@@ -487,6 +487,18 @@
+     si->increment_ref_count();
+   }
+ 
++  // joe Linux: every library loaded with the executable is in the global
++  // group, as in glibc, where the executable and its whole dependency tree
++  // form the global scope that later dlopen()ed libraries resolve against.
++  // Android's global group is the executable and LD_PRELOAD only, so a
++  // plugin that leaves its host's library to the host (a perl or Python
++  // extension module, a PAM module, a server's loadable module) cannot find
++  // that library's symbols. The list is in load order, executable first and
++  // then breadth first, which is glibc's order too.
++  for (soinfo* loaded = solist_get_head(); loaded != nullptr; loaded = loaded->next) {
++    loaded->set_dt_flags_1(loaded->get_dt_flags_1() | DF_1_GLOBAL);
++  }
++
+   // Exit early for ldd. We don't want to run the code that was loaded, so skip
+   // the constructor calls. Skip CFI setup because it would call __cfi_init in
+   // libdl.so.

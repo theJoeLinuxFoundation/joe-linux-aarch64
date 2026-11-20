@@ -1,0 +1,20 @@
+# An image is assembled without privileges, which is not enough to seal its
+# files (fs-verity and the seal attribute need the real root). This does it
+# on the first boot of such an image and never again: deployments made later
+# by dave are sealed as they are created, and inherit the marker. It runs
+# before anything else that is privileged, as soon as the root is writable.
+[service]
+name = "dave-seal"
+supervisor = "early-boot"
+exec = ["/bin/sh", "-c", "[ -e /usr/lib/dave/sealed ] || exec /usr/bin/dave seal"]
+type = "oneshot"
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+requires = ["remount-root-rw"]
+before = ["fstab-mount"]
+
+[readiness]
+type = "none"

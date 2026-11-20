@@ -1,0 +1,17 @@
+.{
+    .name = "shadow",
+    .version = "4.20.3",
+    .release = 4,
+    .description = "Programs for managing users, groups and passwords",
+    .license = "BSD-3-Clause",
+    .sources = .{
+        .{ .url = "https://github.com/shadow-maint/shadow/releases/download/4.20.3/shadow-4.20.3.tar.xz", .sha256 = "623be9429f64fa2165bfc5957c6a642ec309c5cf23c0d53855c99f7591922297" },
+    },
+    .depends = .{ "bionic", "libxcrypt", "acl", "linux-pam" },
+    // Set-uid root. Run by an ordinary user, a program holds only what its
+    // seal declares (packages/linux/joe-lsm), so these declare all;
+    // narrower lists are rule 3's work.
+    .operations = .{
+        .{ .programs = .{ "usr/bin/su", "usr/bin/passwd", "usr/bin/chage", "usr/bin/chfn", "usr/bin/chsh", "usr/bin/gpasswd", "usr/bin/newgrp", "usr/bin/newuidmap", "usr/bin/newgidmap" }, .allow = .{"all"} },
+    },
+}

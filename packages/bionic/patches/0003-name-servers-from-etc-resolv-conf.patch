@@ -1,0 +1,112 @@
+joe Linux: The resolver reads /etc/resolv.conf, and the host databases are under /etc; Android takes name
+servers from netd and keeps the files under /system/etc.
+
+diff --git i/libc/dns/include/resolv_private.h w/libc/dns/include/resolv_private.h
+index 1593aca..68fac6f 100644
+--- i/libc/dns/include/resolv_private.h
++++ w/libc/dns/include/resolv_private.h
+@@ -110,12 +110,8 @@ struct __res_state; /* forward */
+  */
+ 
+ #ifndef _PATH_RESCONF
+-#ifdef ANDROID_CHANGES
+-#define _PATH_RESCONF        "/etc/ppp/resolv.conf"
+-#else
+ #define _PATH_RESCONF        "/etc/resolv.conf"
+ #endif
+-#endif
+ 
+ struct res_sym {
+ 	int		number;	   /* Identifying number, like T_MX */
+diff --git i/libc/dns/resolv/res_init.c w/libc/dns/resolv/res_init.c
+index 3e6bcb7..6d5877e 100644
+--- i/libc/dns/resolv/res_init.c
++++ w/libc/dns/resolv/res_init.c
+@@ -165,23 +165,16 @@ res_ninit(res_state statp) {
+ /* This function has to be reachable by res_data.c but not publicly. */
+ int
+ __res_vinit(res_state statp, int preinit) {
+-#if !defined(__BIONIC__)
++	/* joe Linux: used reading resolv.conf, which bionic otherwise skips. */
+ 	register FILE *fp;
+-#endif
+ 	register char *cp, **pp;
+-#if !defined(__BIONIC__)
+ 	register int n;
+-#endif
+ 	char buf[BUFSIZ];
+ 	int nserv = 0;    /* number of nameserver records read from file */
+-#if !defined(__BIONIC__)
+ 	int haveenv = 0;
+-#endif
+ 	int havesearch = 0;
+ #ifdef RESOLVSORT
+ 	int nsort = 0;
+-#endif
+-#if !defined(__BIONIC__)
+ 	char *net;
+ #endif
+ 	int dots;
+@@ -283,7 +276,9 @@ __res_vinit(res_state statp, int preinit) {
+ 		statp->nscount = nserv;
+ #endif
+ 
+-#ifndef ANDROID_CHANGES /* !ANDROID_CHANGES - IGNORE resolv.conf in Android */
++/* joe Linux: the name servers and search domains are in /etc/resolv.conf,
++ * as on any Linux system; there is no netd to hand them to the resolver. */
++#if 1 /* !ANDROID_CHANGES - IGNORE resolv.conf in Android */
+ #define	MATCH(line, name) \
+ 	(!strncmp(line, name, sizeof(name) - 1) && \
+ 	(line[sizeof(name) - 1] == ' ' || \
+@@ -384,6 +379,7 @@ __res_vinit(res_state statp, int preinit) {
+ 		    }
+ 		    continue;
+ 		}
++#ifdef RESOLVSORT
+ 		if (MATCH(buf, "sortlist")) {
+ 		    struct in_addr a;
+ 
+@@ -426,6 +422,7 @@ __res_vinit(res_state statp, int preinit) {
+ 		    }
+ 		    continue;
+ 		}
++#endif /* RESOLVSORT */
+ 		if (MATCH(buf, "options")) {
+ 		    res_setoptions(statp, buf + sizeof("options") - 1, "conf");
+ 		    continue;
+@@ -433,10 +430,12 @@ __res_vinit(res_state statp, int preinit) {
+ 	    }
+ 	    if (nserv > 0)
+ 		statp->nscount = nserv;
++#ifdef RESOLVSORT
+ 	    statp->nsort = nsort;
++#endif
+ 	    (void) fclose(fp);
+ 	}
+-#endif /* !ANDROID_CHANGES */
++#endif /* reading resolv.conf */
+ /*
+  * Last chance to get a nameserver.  This should not normally
+  * be necessary
+diff --git i/libc/include/netdb.h w/libc/include/netdb.h
+index 832fa9d..c0c0be0 100644
+--- i/libc/include/netdb.h
++++ w/libc/include/netdb.h
+@@ -68,12 +68,12 @@
+ __BEGIN_DECLS
+ 
+ #ifndef _PATH_HEQUIV
+-# define	_PATH_HEQUIV	"/system/etc/hosts.equiv"
++# define	_PATH_HEQUIV	"/etc/hosts.equiv"
+ #endif
+-#define	_PATH_HOSTS	"/system/etc/hosts"
+-#define	_PATH_NETWORKS	"/system/etc/networks"
+-#define	_PATH_PROTOCOLS	"/system/etc/protocols"
+-#define	_PATH_SERVICES	"/system/etc/services"
++#define	_PATH_HOSTS	"/etc/hosts"
++#define	_PATH_NETWORKS	"/etc/networks"
++#define	_PATH_PROTOCOLS	"/etc/protocols"
++#define	_PATH_SERVICES	"/etc/services"
+ 
+ /*
+  * Structures returned by network data base library.  All addresses are

@@ -1,0 +1,8 @@
+.{
+    .name = "joe-live",
+    .version = "0.1",
+    .release = 1,
+    .description = "What turns the console system into the live system of the installation medium",
+    .license = "MIT",
+    .depends = .{ "joe-base", "util-linux" },
+}

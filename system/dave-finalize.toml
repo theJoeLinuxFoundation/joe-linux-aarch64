@@ -1,0 +1,25 @@
+# Applies a prepared upgrade while the system shuts down. The service stays
+# up after its start command exits so that it has something to stop: its
+# stop command does nothing unless an upgrade is pending. It is stopped last,
+# once every other service has stopped and nothing more changes in the root,
+# and while the file systems (/var, /efi) are still mounted. This is
+# joe Linux's dave-finalize.service, ordered as ostree-finalize-staged is.
+[service]
+name = "dave-finalize"
+exec = ["/usr/bin/true"]
+type = "oneshot"
+remain-after-exit = true
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+requires = ["fstab-mount"]
+
+[readiness]
+type = "none"
+
+[shutdown]
+stop-exec = ["/usr/bin/dave", "finalize"]
+stop-timeout = "5min"
+last = true

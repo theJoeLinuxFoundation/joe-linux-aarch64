@@ -1,0 +1,18 @@
+# The medium itself, read-only at /run/live/medium, where the installer
+# (`dave install-system`) reads what to install (joe/install.zon) and the
+# files of it the live root holds changed (joe/originals). dynamod-init found
+# it by the same label when it started the live system.
+[service]
+name = "live-medium"
+exec = ["/usr/lib/joe/live-medium"]
+type = "oneshot"
+remain-after-exit = true
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["fstab-mount", "udev-coldplug"]
+
+[readiness]
+type = "none"

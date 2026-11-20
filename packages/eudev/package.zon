@@ -1,0 +1,17 @@
+.{
+    .name = "eudev",
+    .version = "3.3.0",
+    .release = 1,
+    .description = "udev without systemd: the device manager, udevadm, libudev and the hardware database",
+    .license = "GPL-2.0-or-later AND LGPL-2.1-or-later",
+    .sources = .{
+        .{ .url = "https://github.com/eudev-project/eudev/releases/download/v3.3.0/eudev-3.3.0.tar.gz", .sha256 = "8fba6e4f49ea4b1938828a3c2e7cc48874816c68621386e527076b6477f5d6ef" },
+    },
+    // kmod: loading the drivers for hardware it finds; util-linux: libblkid,
+    // for the file system links (/dev/disk/by-uuid, by-label).
+    .depends = .{ "bionic", "kmod", "util-linux" },
+    .build_depends = .{ "gperf", "pkgconf" },
+    .operations = .{
+        .{ .programs = .{ "usr/sbin/udevd", "usr/bin/udevadm" }, .allow = .{"all"} },
+    },
+}

@@ -1,0 +1,31 @@
+.{
+    .name = "bionic",
+    .version = "17.0.0_r1",
+    .release = 1,
+    .description = "bionic, Android's C library, as joe Linux's: libc, libm, libdl and the dynamic linker",
+    .license = "BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND Apache-2.0",
+    // AOSP's bionic and the libraries its build uses, as `git archive` tars
+    // of the commits tagged android-17.0.0_r1 (aosp.list); the Unicode
+    // Character Database, for its character classes; LLVM's source, for the
+    // libunwind and libc++ the build links. These are the files of
+    // bootstrap/sources, checked the same way.
+    .sources = .{
+        .{ .url = "git+https://android.googlesource.com/platform/bionic#06356e41c5ed7b12220b24c05ba4fdb873b126a7", .file = "aosp-bionic-06356e41c5ed7b12220b24c05ba4fdb873b126a7.tar", .sha256 = "8a7cc2d81f6bdcf617f3a93447f71d91b430e8d6b689f4f86baabe375cc0e9b5" },
+        .{ .url = "git+https://android.googlesource.com/platform/external/scudo#15715589eebe155c799ce6fe27005bc8775b86ad", .file = "aosp-external-scudo-15715589eebe155c799ce6fe27005bc8775b86ad.tar", .sha256 = "60bd7c8b1e83c9d35b79161501df3104b70b48e20268376f74bcd135ce9ab24c" },
+        .{ .url = "git+https://android.googlesource.com/platform/external/gwp_asan#54826e96fc883088ac6cfc80240c094e671d6e24", .file = "aosp-external-gwp_asan-54826e96fc883088ac6cfc80240c094e671d6e24.tar", .sha256 = "6083e641c8130ee7917ba1e9bf9ae8c691d9a61c9440bf66f57987d4a5f34752" },
+        .{ .url = "git+https://android.googlesource.com/platform/external/llvm-libc#95e08d1d4ccefa41921bc00a369008f7618b7101", .file = "aosp-external-llvm-libc-95e08d1d4ccefa41921bc00a369008f7618b7101.tar", .sha256 = "64cef5493e0bff36f60473da02400a13f856499d061bcc0f4fbfb9a8fb77c9b1" },
+        .{ .url = "git+https://android.googlesource.com/platform/external/arm-optimized-routines#498b3de1a06e8cd87b2f9d49d1d8a23ebba5cc5a", .file = "aosp-external-arm-optimized-routines-498b3de1a06e8cd87b2f9d49d1d8a23ebba5cc5a.tar", .sha256 = "d601d528688185b8c510ec5adb76d3cf991960670b8e26a8248c7b2ddd0b46dd" },
+        .{ .url = "git+https://android.googlesource.com/platform/external/google-highway#94b90ab8cb9df9b3719a64751ea2fcb62caa3391", .file = "aosp-external-google-highway-94b90ab8cb9df9b3719a64751ea2fcb62caa3391.tar", .sha256 = "8e36e7f5fd926fa292faac3418062846832f3d0ace40903283e95e5f987b0caf" },
+        .{ .url = "git+https://android.googlesource.com/platform/external/fmtlib#e3bef0ad2e9d4ea38ba3b4b2b59e0514f7025fed", .file = "aosp-external-fmtlib-e3bef0ad2e9d4ea38ba3b4b2b59e0514f7025fed.tar", .sha256 = "9d2cd0c81c9b9bbee3febd19e92c887dc04c4b687e650a6408ad9c54026fc364" },
+        .{ .url = "git+https://android.googlesource.com/platform/system/core#545d2487e38192a2ce25040897ced877cf6b4f53", .file = "aosp-system-core-545d2487e38192a2ce25040897ced877cf6b4f53.tar", .sha256 = "d8f7d52c754e8230a9a28e377d25d0c89f503a0d4f88f5eb3b574834d3826824" },
+        .{ .url = "git+https://android.googlesource.com/platform/system/logging#d35ba620451b28512f46ebb5421f783fd77968d5", .file = "aosp-system-logging-d35ba620451b28512f46ebb5421f783fd77968d5.tar", .sha256 = "71c3ee633fbe1c786a347d53b34f7f885efe6805da848aae16b314926a3245f0" },
+        .{ .url = "git+https://android.googlesource.com/platform/system/libbase#fef4173e19d97cd4b4fc09a06bccbf800d0d3937", .file = "aosp-system-libbase-fef4173e19d97cd4b4fc09a06bccbf800d0d3937.tar", .sha256 = "013ba97621cf16e51861b0b72cde5af71b05c3e33686a780475955eb3ddcdb96" },
+        .{ .url = "git+https://android.googlesource.com/platform/system/libprocinfo#b58259e79c58deb1132e11d74ea90a2dc441d84f", .file = "aosp-system-libprocinfo-b58259e79c58deb1132e11d74ea90a2dc441d84f.tar", .sha256 = "c1d3a84c555c2ca48a2e507870ee3a43a212ee972dc9ac970fdd90b231c5412e" },
+        .{ .url = "git+https://android.googlesource.com/platform/system/libziparchive#bdd41f9c99400f241363b035eb64ad3d5f063c82", .file = "aosp-system-libziparchive-bdd41f9c99400f241363b035eb64ad3d5f063c82.tar", .sha256 = "ff51dd0e0fd2ec67fdb2f1de70fb87c7b52d63a0435a86bd2182b60d9b396c8f" },
+        .{ .url = "https://www.unicode.org/Public/17.0.0/ucd/UCD.zip", .file = "UCD-17.0.0.zip", .sha256 = "2066d1909b2ea93916ce092da1c0ee4808ea3ef8407c94b4f14f5b7eb263d28e" },
+        .{ .url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.0/llvm-project-23.1.0.src.tar.xz", .file = "llvm-project-23.1.0.src.tar.xz", .sha256 = "ab1f0e3ec52448c33e8782eaf0422504b87c7b016b22514653ee0d8fcee479ff" },
+    },
+    // The kernel's headers, as bionic ships them, are part of this package.
+    .depends = .{},
+    .build_depends = .{ "python", "ninja", "cmake" },
+}

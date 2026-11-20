@@ -1,0 +1,57 @@
+# Build order, one package per line. The base system replaces the
+# bootstrap's temporary tools one by one, in the order of Linux From
+# Scratch's chapter 8, with bionic and LLVM's runtimes in place of glibc and
+# GCC. "build-only" packages are built but not installed into the build root.
+iana-etc
+bionic
+llvm-runtimes
+zlib
+bzip2
+xz
+zstd
+file
+readline
+m4
+bc
+flex
+pkgconf
+attr
+acl
+libcap
+libxcrypt
+gawk
+ncurses
+bash
+sed
+gettext
+bison
+grep
+libtool
+gperf
+expat
+less
+perl
+autoconf
+automake
+libffi
+openssl
+python
+flit-core
+packaging
+wheel
+setuptools
+meson
+ninja
+linux-pam
+shadow
+kmod
+coreutils
+diffutils
+findutils
+gzip
+iproute2
+make
+patch
+tar
+util-linux
+btrfs-progs

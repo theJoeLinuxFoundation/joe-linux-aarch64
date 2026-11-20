@@ -1,0 +1,61 @@
+joe Linux: faccessat(2) with AT_EACCESS (and the other flags), through faccessat2(2); Android
+rejects them because it has no set-uid programs, which makes shells' `test -x` fail.
+
+diff --git i/libc/SYSCALLS.TXT w/libc/SYSCALLS.TXT
+index 3622ca4..4e9451f 100644
+--- i/libc/SYSCALLS.TXT
++++ w/libc/SYSCALLS.TXT
+@@ -160,6 +160,7 @@ __getdents64:getdents64(unsigned int, struct dirent*, unsigned int)   all
+ 
+ __openat:openat(int, const char*, int, mode_t) all
+ __faccessat:faccessat(int, const char*, int)  all
++__faccessat2:faccessat2(int, const char*, int, int)  all
+ __fchmodat:fchmodat(int, const char*, mode_t)  all
+ fchownat(int, const char*, uid_t, gid_t, int)  all
+ fstatat64|fstatat:fstatat64(int, const char*, struct stat*, int)   lp32
+diff --git i/libc/bionic/faccessat.cpp w/libc/bionic/faccessat.cpp
+index 1f38107..df27f91 100644
+--- i/libc/bionic/faccessat.cpp
++++ w/libc/bionic/faccessat.cpp
+@@ -31,6 +31,7 @@
+ #include <errno.h>
+ 
+ extern "C" int __faccessat(int, const char*, int);
++extern "C" int __faccessat2(int, const char*, int, int);
+ 
+ int faccessat(int dirfd, const char* pathname, int mode, int flags) {
+   // "The mode specifies the accessibility check(s) to be performed,
+@@ -42,19 +43,21 @@ int faccessat(int dirfd, const char* pathname, int mode, int flags) {
+     return -1;
+   }
+ 
+-  if (flags != 0) {
+-    // We deliberately don't support AT_SYMLINK_NOFOLLOW, a glibc
+-    // only feature which is error prone and dangerous.
+-    // More details at http://permalink.gmane.org/gmane.linux.lib.musl.general/6952
+-    //
+-    // AT_EACCESS isn't supported either. Android doesn't have setuid
+-    // programs, and never runs code with euid!=uid.
+-    //
+-    // We could use faccessat2(2) from Linux 5.8, but since we don't want the
+-    // first feature and don't need the second, we just reject such requests.
++  if (flags == 0) {
++    return __faccessat(dirfd, pathname, mode);
++  }
++
++  // joe Linux has set-uid and set-gid programs, so AT_EACCESS matters:
++  // shells answer `test -x` with it, and configure scripts refuse a shell
++  // whose `test -x /` fails. faccessat2(2), from Linux 5.8, takes the flags.
++  // Where the effective ids are the real ones, as they almost always are,
++  // AT_EACCESS changes nothing and the old system call answers.
++  if ((flags & ~(AT_EACCESS | AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0) {
+     errno = EINVAL;
+     return -1;
+   }
+-
+-  return __faccessat(dirfd, pathname, mode);
++  if (flags == AT_EACCESS && geteuid() == getuid() && getegid() == getgid()) {
++    return __faccessat(dirfd, pathname, mode);
++  }
++  return __faccessat2(dirfd, pathname, mode, flags);
+ }

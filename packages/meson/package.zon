@@ -1,0 +1,12 @@
+.{
+    .name = "meson",
+    .version = "1.12.1",
+    .release = 2,
+    .description = "Build system focused on speed and ease of use",
+    .license = "Apache-2.0",
+    .sources = .{
+        .{ .url = "https://github.com/mesonbuild/meson/releases/download/1.12.1/meson-1.12.1.tar.gz", .sha256 = "ab0a6ca09f8ef70c564c8241fb5a23957886a0b53fb58412b5e07eaf07dba743" },
+    },
+    .depends = .{ "python", "ninja" },
+    .build_depends = .{ "python", "setuptools", "wheel" },
+}

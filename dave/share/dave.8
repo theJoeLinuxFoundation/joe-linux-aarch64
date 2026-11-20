@@ -1,0 +1,326 @@
+.TH DAVE 8 2026-11-18 "joe Linux" "joe Linux"
+.SH NAME
+dave \- install, remove and upgrade software on joe Linux
+.SH SYNOPSIS
+.B dave
+.I command
+.RI [ options ]
+.RI [ operands ]
+.br
+.B dave help
+.RI [ command ]
+.SH DESCRIPTION
+.B dave
+is joe Linux's package manager. It installs and removes packages on the
+running system at once, after saving the system as it was as a
+.I deployment
+that can be booted, so that any change can be undone with
+.BR "dave rollback" .
+Upgrades are prepared while the system runs and applied as it shuts down.
+.PP
+What you asked for is kept in
+.IR /etc/dave/world ;
+everything else installed is there because something you asked for needs it.
+dave works out the rest from the signed indexes of the configured
+repositories.
+.PP
+Every command explains itself with
+.B dave help
+.I command
+or
+.IR command " " \-\-help .
+.SH COMMANDS
+.SS Packages
+.TP
+.BI install " package" ...
+Install packages and whatever they need. A package may carry a version
+constraint, as in
+.B hello>=2.0
+or
+.BR hello=2.0-r1 .
+.TP
+.BI remove " package" ...
+Remove packages you asked for, with the dependencies nothing else needs any
+more. A package that is only installed because another needs it cannot be
+removed by itself;
+.B dave why
+says what needs it.
+.TP
+.B upgrade
+Work out an upgrade of every package, download it and prove that it applies
+cleanly to a copy of the system. It is applied as the machine shuts down,
+and anything changed before then is kept. With
+.BR \-\-check ,
+only say what an upgrade would change.
+.SS Finding out
+These need no root. Without it, they use the package index dave fetched last.
+.TP
+.B list
+The installed packages; those installed for another's sake are marked as
+dependencies.
+.TP
+.BI info " package"
+The installed and newest available versions, licence, sizes, dependencies,
+what depends on it, and why it is installed.
+.TP
+.BI search " word" ...
+The packages whose name or description contains every word, ignoring case.
+Names that match come first; installed packages are marked.
+.TP
+.BI files " package"
+The files, directories and links an installed package put on the system.
+.TP
+.BI owns " path" ...
+The installed package a file belongs to. Paths are resolved as the system
+resolves them, so
+.I /bin/sh
+is found although packages install it in
+.IR /usr/bin .
+.TP
+.BI why " package"
+Why a package is installed: because you asked for it, or by the shortest
+chain of dependencies from something you asked for.
+.SS System
+.TP
+.B status
+The running deployment, the one that starts on the next boot, any prepared
+upgrade, and every deployment that can be booted.
+.TP
+.B rollback
+Make the deployment before the running one start on the next boot, and on
+every boot after it.
+.TP
+.BR deployments " [" list " | " pin
+.IR id " | "
+.B unpin
+.IR id " | "
+.BR gc ]
+List the deployments, keep one until it is unpinned, or delete those that
+are no longer needed.
+.SS Building
+.TP
+.BI build " recipe"
+Build a package from a recipe in a build root
+.RB ( \-\-buildroot ", " \-\-sources ", " \-\-work ", " \-\-out ).
+.TP
+.BI pack " tree"
+Make a package of a directory
+.RB ( \-\-name ", " \-\-version ", " \-\-out ).
+.TP
+.BR repo " " index | audit
+.I dir
+Write and sign a repository's index, or audit its packages' seals.
+.TP
+.BR key " " generate | generate-code
+.I basename
+Create a key pair for signing indexes, or for sealing programs.
+.TP
+.B seal
+Seal installed files that are not sealed yet; run on an image's first boot.
+.SS Images and installation
+.TP
+.BI "image build" " spec"
+Build the disk image, live medium or container image a specification describes.
+.TP
+.B install-system
+With
+.BR \-\-list ,
+the disks joe Linux could be installed on; with
+.BR \-\-disk ,
+erase one and install onto it, or with
+.B \-\-beside
+install into its free space beside the system already there.
+.SS Help
+.TP
+.BR help " [" \fIcommand\fR ]
+Explain dave, or one command and the options it takes.
+.TP
+.B version
+Show dave's version.
+.SH OPTIONS
+.SS For every command
+.TP
+.BI \-\-root " dir"
+Work on the system installed at
+.I dir
+instead of the running one.
+.TP
+.BI \-\-cache " dir"
+Keep downloaded indexes and packages in
+.IR dir .
+.TP
+.BR \-h ", " \-\-help
+Explain the command.
+.TP
+.BR \-V ", " \-\-version
+Show dave's version.
+.SS Changing the system
+.TP
+.BR \-y ", " \-\-yes
+Go ahead without asking (install, remove).
+.TP
+.B \-\-dry\-run
+Show what would be done, and stop.
+.TP
+.B \-\-no\-triggers
+Do not run package triggers.
+.TP
+.B \-\-overwrite
+Replace files that exist but belong to no package.
+.TP
+.B \-\-check
+Only say what an upgrade would change (upgrade).
+.TP
+.B \-\-reboot
+Apply the prepared upgrade now, and reboot (upgrade).
+.TP
+.B \-\-requested
+Only the packages you asked for (list).
+.SS Installing onto a disk
+.TP
+.B \-\-list
+List the disks joe Linux could be installed on.
+.TP
+.BI \-\-disk " disk"
+Erase
+.I disk
+and install onto it.
+.TP
+.B \-\-beside
+Keep what is on the disk: take its largest free space (22 GB or more) and
+share its EFI system partition, so that the boot menu offers the other
+system too. Nothing is resized; make the space first, in the other system.
+.TP
+.B \-\-json
+Report progress as JSON events, one per line, for a program watching.
+.TP
+.BI \-\-with " package"
+Install
+.I package
+as well (also for image); install-system takes it from the medium's root,
+so it must be installed there.
+.SS Building images
+.TP
+.B \-\-test
+Add joe-test-console, which logs root in on the serial console without a
+password. For automated tests only.
+.TP
+.BI \-\-repo " name,dir,url,key"
+A repository: read from
+.I dir
+while building, used as
+.I url
+by the image, signed by the public key in
+.IR key .
+.TP
+.BI \-\-tree " dir"
+Start from
+.I dir
+instead of the specification's tree.
+.TP
+.BI \-\-out " file"
+Where the image (or, for build and pack, the package) is written.
+.SS Building packages
+.TP
+.BI \-\-buildroot " dir" "\fR, \fP" \-\-sources " dir" "\fR, \fP" \-\-work " dir"
+The build root, the downloaded sources, and where builds happen.
+.TP
+.BI \-\-driver " file"
+The build driver, if not packages/.build/driver.sh.
+.TP
+.B \-\-keep\-work
+Keep the work directory of a successful build.
+.TP
+.BI \-\-code\-key " file"
+Seal the package's files with this code-signing key.
+.TP
+.BI \-\-allow " op"
+An operation the package declares (pack), or the declaration for recipes
+that make none (build).
+.TP
+.BI \-\-name " name" "\fR, \fP" \-\-version " version" "\fR, \fP" \-\-description " text" "\fR, \fP" \-\-license " spdx"
+The package's name, version (with a release, as in 1.0-r1), description
+and licence (pack).
+.TP
+.BI \-\-depends " dep" "\fR, \fP" \-\-conflicts " dep"
+A dependency, as in "glibc >=2.44", or a package it cannot be installed
+with (pack).
+.TP
+.BI \-\-key " file"
+Sign the index with this secret key (repo index).
+.SH ASKING FIRST
+.B install
+and
+.B remove
+show what they will do. When that is exactly the packages named, they go
+ahead; when more would change (dependencies come in, other packages are
+upgraded or removed), they ask
+.B "Continue? [Y/n]"
+first. They only ask when both standard input and standard output are a
+terminal;
+.B \-\-yes
+answers for you. Answering no changes nothing and exits with status 1.
+.SH OUTPUT
+On a terminal, dave uses colour and redraws one line to show downloads and
+progress. Output to a pipe or a file, or to a terminal whose
+.B TERM
+is
+.BR dumb ,
+is plain lines.
+.SH ENVIRONMENT
+.TP
+.B NO_COLOR
+When set and not empty, no colour.
+.TP
+.B CLICOLOR_FORCE
+When set and not 0, colour even when the output is not a terminal.
+.TP
+.B TERM
+.B dumb
+means no colour and no redrawn lines.
+.SH FILES
+.TP
+.I /etc/dave/world
+The packages you asked for.
+.TP
+.I /etc/dave/repos.zon
+The repositories, by name and URL.
+.TP
+.I /etc/dave/keys/
+The public keys repository indexes must be signed with.
+.TP
+.I /usr/lib/dave/db/
+What is installed, inside each deployment.
+.TP
+.I /var/cache/dave/
+Downloaded indexes and packages.
+.TP
+.I /run/dave/status.zon
+What
+.B dave status
+shows, written by root for everyone.
+.SH EXIT STATUS
+0 on success; 1 when the command failed, nothing matched, or a question was
+answered no.
+.SH EXAMPLES
+.TP
+.B dave search image viewer
+Find a package.
+.TP
+.B sudo dave install loupe
+Install it now.
+.TP
+.B dave why zlib
+Find out why something is installed.
+.TP
+.B dave upgrade \-\-check
+See whether there is anything to upgrade.
+.TP
+.B sudo dave upgrade \-\-reboot
+Prepare the upgrade and reboot into it.
+.TP
+.B sudo dave rollback
+Go back to the system as it was before the last change, on the next boot.
+.SH SEE ALSO
+.BR systemd-boot (7),
+.BR btrfs (8)

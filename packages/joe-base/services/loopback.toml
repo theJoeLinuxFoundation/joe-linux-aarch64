@@ -1,0 +1,11 @@
+[service]
+name = "loopback"
+supervisor = "early-boot"
+exec = ["/usr/sbin/ip", "link", "set", "lo", "up"]
+type = "oneshot"
+
+[restart]
+policy = "temporary"
+
+[readiness]
+type = "none"

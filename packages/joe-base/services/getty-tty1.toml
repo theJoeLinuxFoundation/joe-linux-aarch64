@@ -1,0 +1,16 @@
+# A login prompt on the first virtual console, for a screen and keyboard
+# (a server's management controller shows it too).
+[service]
+name = "getty-tty1"
+exec = ["/usr/lib/joe/vt-getty", "tty1"]
+type = "simple"
+
+[restart]
+policy = "permanent"
+delay = "1s"
+
+[dependencies]
+after = ["fstab-mount", "udev-coldplug"]
+
+[readiness]
+type = "none"

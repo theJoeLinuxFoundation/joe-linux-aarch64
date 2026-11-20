@@ -1,0 +1,17 @@
+# /var and /home (subvolumes every deployment shares), the EFI system
+# partition at /efi and whatever the administrator adds: /etc/fstab, which
+# the image builder and the installer write.
+[service]
+name = "fstab-mount"
+supervisor = "early-boot"
+exec = ["/usr/bin/mount", "-a"]
+type = "oneshot"
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+requires = ["remount-root-rw"]
+
+[readiness]
+type = "none"

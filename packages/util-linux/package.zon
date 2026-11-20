@@ -1,0 +1,18 @@
+.{
+    .name = "util-linux",
+    .version = "2.42.4",
+    .release = 2,
+    .description = "Miscellaneous system utilities and the blkid, fdisk, mount, smartcols and uuid libraries",
+    .license = "GPL-2.0-or-later AND GPL-2.0-only AND GPL-3.0-or-later AND LGPL-2.1-or-later AND BSD-2-Clause AND BSD-3-Clause AND BSD-4-Clause-UC AND ISC AND LicenseRef-Public-Domain",
+    .sources = .{
+        .{ .url = "https://www.kernel.org/pub/linux/utils/util-linux/v2.42/util-linux-2.42.4.tar.xz", .sha256 = "fbd62a100ab7bb8746ba0661255c3c48185b1e9021507c624da01fbc696330ec" },
+    },
+    .depends = .{ "bionic", "ncurses", "readline", "zlib", "libxcrypt", "file" },
+    .build_depends = .{"pkgconf"},
+    // Set-uid root. Run by an ordinary user, a program holds only what its
+    // seal declares (packages/linux/joe-lsm), so these declare all;
+    // narrower lists are rule 3's work.
+    .operations = .{
+        .{ .programs = .{ "usr/bin/mount", "usr/bin/umount" }, .allow = .{"all"} },
+    },
+}

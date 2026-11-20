@@ -1,0 +1,11 @@
+.{
+    .name = "acl",
+    .version = "2.4.0",
+    .release = 3,
+    .description = "Utilities and library for POSIX access control lists",
+    .license = "GPL-2.0-or-later AND LGPL-2.1-or-later",
+    .sources = .{
+        .{ .url = "https://download.savannah.nongnu.org/releases/acl/acl-2.4.0.tar.xz", .sha256 = "e661131456d2708a01c614a0f400e11d7d1bfaeb6f3e74b75bb980b72f0161a3" },
+    },
+    .depends = .{ "bionic", "attr" },
+}
