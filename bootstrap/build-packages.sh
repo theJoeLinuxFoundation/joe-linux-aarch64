@@ -129,4 +129,8 @@ while read -r name flag; do
     fi
 done < <("$top/bootstrap/order.py" "$@")
 
+# dave installs what a package.zon names; check that it names the packages
+# whose libraries the programs need.
+"$top/bootstrap/check-depends.py" "$top"
+
 echo "all packages built: $repo"
