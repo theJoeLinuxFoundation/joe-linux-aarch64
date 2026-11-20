@@ -1,0 +1,45 @@
+joe Linux: anonymous mappings are not named, as glibc does not name them by default. Naming is a
+prctl() call at every mapping, malloc's included, which the seccomp filters of programs written for
+glibc do not allow: dhcpcd's killed it at the first malloc() that mapped memory, and OpenSSH's
+sandbox allows no prctl() either. __bionic_set_vma_name names nothing; scudo's and GWP-ASan's
+names are dropped in their 0002 patches.
+
+diff --git i/libc/platform/bionic/vma_name.h w/libc/platform/bionic/vma_name.h
+index 8df97d7..fd53bc1 100644
+--- i/libc/platform/bionic/vma_name.h
++++ w/libc/platform/bionic/vma_name.h
+@@ -27,20 +27,21 @@
+ #include <sys/prctl.h>
+ 
+ /*
+- * joe Linux: names an anonymous mapping, for /proc/PID/maps and crash reports.
++ * joe Linux: where Android names an anonymous mapping (for /proc/PID/maps and
++ * crash reports), joe Linux does not, as glibc does not (unless its
++ * glibc.mem.decorate_maps tunable is set).
+  *
+- * Naming needs a kernel built with CONFIG_ANON_VMA_NAME. Android's kernels are;
+- * many Linux kernels are not, and there every name is refused with EINVAL. A
+- * name is only an aid to debugging, and the functions that map memory (malloc,
+- * atexit, dlopen, thread creation, ...) must not leave that error in errno when
+- * they succeed: programs written for glibc read errno after calls that set it
+- * only on failure (the kernel's kallsyms does after getline at the end of a
+- * file). So errno is left as it was, and the error is returned: 0 when the
+- * mapping is named.
++ * Naming is a prctl() call at every mapping, malloc's included, and the
++ * seccomp filters of programs written for glibc do not allow prctl():
++ * dhcpcd's killed it at the first malloc() that mapped memory, and OpenSSH's
++ * sandbox allows no prctl() either. It also needs a kernel built with
++ * CONFIG_ANON_VMA_NAME, which many Linux kernels are not. The call sites
++ * keep the names Android gives; this returns 0 as if the mapping had been
++ * named, and leaves errno alone.
+  */
+ static inline int __bionic_set_vma_name(const void* addr, size_t size, const char* name) {
+-  int saved_errno = errno;
+-  int error = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, addr, size, name) == 0 ? 0 : errno;
+-  errno = saved_errno;
+-  return error;
++  (void)addr;
++  (void)size;
++  (void)name;
++  return 0;
+ }

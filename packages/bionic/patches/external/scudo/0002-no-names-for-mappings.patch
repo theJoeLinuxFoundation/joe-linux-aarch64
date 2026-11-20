@@ -1,0 +1,52 @@
+joe Linux: mappings are not named, as glibc does not name them. Naming is a prctl() call at every
+mapping, which the seccomp filters of programs written for glibc do not allow: dhcpcd's killed it at
+its first malloc() (see bionic's patch 0038).
+
+diff --git i/standalone/linux.cpp w/standalone/linux.cpp
+index 5ce7821..230f08c 100644
+--- i/standalone/linux.cpp
++++ w/standalone/linux.cpp
+@@ -73,15 +73,9 @@ void *map(void *Addr, uptr Size, UNUSED const char *Name, uptr Flags,
+       reportMapError(errno == ENOMEM ? Size : 0);
+     return nullptr;
+   }
+-#if SCUDO_ANDROID
+-  if (Name) {
+-    // joe Linux: naming needs a kernel built with CONFIG_ANON_VMA_NAME, and
+-    // where it is refused, a mapping that succeeds leaves errno as it was.
+-    int SavedErrno = errno;
+-    prctl(ANDROID_PR_SET_VMA, ANDROID_PR_SET_VMA_ANON_NAME, P, Size, Name);
+-    errno = SavedErrno;
+-  }
+-#endif
++  // joe Linux: mappings are not named, as glibc does not name them: naming
++  // is a prctl() call, which the seccomp filters of programs written for
++  // glibc do not allow (bionic's patch 0038).
+   return P;
+ }
+ 
+diff --git i/standalone/mem_map_linux.cpp w/standalone/mem_map_linux.cpp
+index 5b6abc5..30b9bcc 100644
+--- i/standalone/mem_map_linux.cpp
++++ w/standalone/mem_map_linux.cpp
+@@ -68,17 +68,10 @@ static void *mmapWrapper(uptr Addr, uptr Size, const char *Name, uptr Flags) {
+       reportMapError(errno == ENOMEM ? Size : 0);
+     return nullptr;
+   }
+-#if SCUDO_ANDROID
+-  if (Name) {
+-    // joe Linux: naming needs a kernel built with CONFIG_ANON_VMA_NAME, and
+-    // where it is refused, a mapping that succeeds leaves errno as it was.
+-    int SavedErrno = errno;
+-    prctl(ANDROID_PR_SET_VMA, ANDROID_PR_SET_VMA_ANON_NAME, P, Size, Name);
+-    errno = SavedErrno;
+-  }
+-#else
++  // joe Linux: mappings are not named, as glibc does not name them: naming
++  // is a prctl() call, which the seccomp filters of programs written for
++  // glibc do not allow (bionic's patch 0038).
+   (void)Name;
+-#endif
+ 
+   return P;
+ }

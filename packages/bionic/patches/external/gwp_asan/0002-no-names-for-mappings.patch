@@ -1,0 +1,27 @@
+joe Linux: mappings are not named, as glibc does not name them. Naming is a prctl() call, which the
+seccomp filters of programs written for glibc do not allow (see bionic's patch 0038).
+
+diff --git i/gwp_asan/platform_specific/guarded_pool_allocator_posix.cpp w/gwp_asan/platform_specific/guarded_pool_allocator_posix.cpp
+index 94be068..aa1a5ca 100644
+--- i/gwp_asan/platform_specific/guarded_pool_allocator_posix.cpp
++++ w/gwp_asan/platform_specific/guarded_pool_allocator_posix.cpp
+@@ -28,13 +28,12 @@
+ 
+ namespace {
+ void MaybeSetMappingName(void *Mapping, size_t Size, const char *Name) {
+-#ifdef ANDROID
+-  // joe Linux: naming needs a kernel built with CONFIG_ANON_VMA_NAME, and
+-  // where it is refused, errno is left as it was.
+-  int SavedErrno = errno;
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, Mapping, Size, Name);
+-  errno = SavedErrno;
+-#endif // ANDROID
++  // joe Linux: mappings are not named, as glibc does not name them: naming
++  // is a prctl() call, which the seccomp filters of programs written for
++  // glibc do not allow (bionic's patch 0038).
++  (void)Mapping;
++  (void)Size;
++  (void)Name;
+   // Anonymous mapping names are only supported on Android.
+   return;
+ }
