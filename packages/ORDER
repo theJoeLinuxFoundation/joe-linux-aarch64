@@ -27,6 +27,7 @@ gettext
 bison
 grep
 libtool
+gdbm
 gperf
 expat
 less
@@ -35,6 +36,9 @@ autoconf
 automake
 libffi
 openssl
+# util-linux before Python, not after it as in Linux From Scratch: Python
+# depends on its libuuid (the _uuid module), as on gdbm (_gdbm, _dbm).
+util-linux
 python
 flit-core
 packaging
@@ -53,5 +57,4 @@ iproute2
 make
 patch
 tar
-util-linux
 btrfs-progs
