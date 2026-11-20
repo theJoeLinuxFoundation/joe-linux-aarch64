@@ -12,6 +12,9 @@ build() {
 
 package() {
     make DESTDIR="$DESTDIR" install
+    # libintl is a package of its own (packages/libintl), which every program
+    # that translates its messages needs without gettext's tools.
+    rm -v "$DESTDIR"/usr/lib/libintl.so* "$DESTDIR"/usr/include/libintl.h
     # No preloadable_libintl.so: gettext builds it for glibc, whose own
     # gettext it is preloaded over. Here libintl.so is the only gettext.
 }

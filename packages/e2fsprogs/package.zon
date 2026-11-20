@@ -1,12 +1,12 @@
 .{
     .name = "e2fsprogs",
     .version = "1.47.4",
-    .release = 2,
+    .release = 3,
     .description = "Utilities and libraries for the ext2, ext3 and ext4 file systems, with the com_err and ss libraries",
     .license = "GPL-2.0-only AND LGPL-2.0-only AND BSD-3-Clause AND MIT",
     .sources = .{
         .{ .url = "https://downloads.sourceforge.net/project/e2fsprogs/e2fsprogs/v1.47.4/e2fsprogs-1.47.4.tar.gz", .sha256 = "2cec05f39c20ee621f14926195664e66e6017190ac8e4bbdb16d86082e43c5da" },
     },
-    .depends = .{ "bionic", "util-linux" },
+    .depends = .{ "bionic", "util-linux", "libintl" },
     .build_depends = .{ "pkgconf", "gettext" },
 }

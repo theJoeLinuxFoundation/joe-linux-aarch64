@@ -1,6 +1,9 @@
 build() {
     # The two makeinstall switches stop "make install" from running chown,
     # chgrp tty (wall, write) and chmod u+s itself; modes are set in package().
+    # --without-udev: eudev, which depends on util-linux, is built after it,
+    # and lsblk and findmnt would otherwise link libudev only when a rebuild
+    # finds it installed.
     ./configure --bindir=/usr/bin \
         --libdir=/usr/lib \
         --runstatedir=/run \
@@ -15,6 +18,7 @@ build() {
         --disable-liblastlog2 \
         --disable-static \
         --without-python \
+        --without-udev \
         --disable-makeinstall-chown \
         --disable-makeinstall-setuid \
         ADJTIME_PATH=/var/lib/hwclock/adjtime \

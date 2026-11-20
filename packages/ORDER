@@ -10,6 +10,9 @@ bzip2
 xz
 zstd
 file
+# ncurses before readline, not after gawk as in Linux From Scratch: readline's
+# library depends on it, and is installed as soon as it is built.
+ncurses
 readline
 m4
 bc
@@ -20,9 +23,10 @@ acl
 libcap
 libxcrypt
 gawk
-ncurses
 bash
 sed
+# libintl, from gettext's source: what uses gettext() needs it (bionic has none).
+libintl
 gettext
 bison
 grep

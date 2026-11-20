@@ -1,7 +1,7 @@
 .{
     .name = "cmake",
     .version = "4.4.5",
-    .release = 1,
+    .release = 2,
     .description = "Cross-platform build system generator, with ctest and cpack",
     .license = "BSD-3-Clause",
     .sources = .{
@@ -9,5 +9,5 @@
     },
     // Its own copies of curl, libarchive, libuv and the rest: cmake is a
     // build tool here, and those libraries are not part of the base system.
-    .depends = .{ "bionic", "llvm-runtimes" },
+    .depends = .{ "bionic", "llvm-runtimes", "ncurses" },
 }

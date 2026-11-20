@@ -1,7 +1,7 @@
 .{
     .name = "ninja",
     .version = "1.13.2",
-    .release = 1,
+    .release = 2,
     .description = "Small build system with a focus on speed",
     .license = "Apache-2.0",
     .sources = .{
@@ -9,6 +9,6 @@
     },
     // ninja also needs libstdc++ and libgcc_s (gcc) at run time. Not listed: ninja
     // has to be built before pkgconf, which is long before gcc.
-    .depends = .{"bionic"},
+    .depends = .{ "bionic", "llvm-runtimes" },
     .build_depends = .{"python"},
 }

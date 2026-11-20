@@ -1,13 +1,13 @@
 .{
     .name = "inetutils",
     .version = "2.8",
-    .release = 4,
+    .release = 5,
     .description = "Basic networking programs: ping, traceroute, telnet, ftp, tftp, talk, ifconfig, dnsdomainname",
     .license = "GPL-3.0-or-later",
     .sources = .{
         .{ .url = "https://ftpmirror.gnu.org/inetutils/inetutils-2.8.tar.gz", .sha256 = "57b3cf4f77555992881e5ba2a09a63b05aa2c56342a60ed4305b5f45938390b5" },
     },
-    .depends = .{ "bionic", "ncurses", "readline", "libxcrypt" },
+    .depends = .{ "bionic", "ncurses", "readline", "libxcrypt", "libintl" },
     // Set-uid root. Run by an ordinary user, a program holds only what its
     // seal declares (packages/linux/joe-lsm), so these declare all;
     // narrower lists are rule 3's work.

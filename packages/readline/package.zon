@@ -1,7 +1,7 @@
 .{
     .name = "readline",
     .version = "8.3",
-    .release = 3,
+    .release = 4,
     .description = "Library for command-line editing and history",
     .license = "GPL-3.0-or-later",
     .sources = .{
@@ -10,5 +10,5 @@
     // libreadline also needs libncursesw (ncurses) at run time. It is not listed
     // because ncurses is built after readline, so the dependency could not be
     // satisfied when readline is installed into the build root.
-    .depends = .{"bionic"},
+    .depends = .{ "bionic", "ncurses" },
 }

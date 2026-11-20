@@ -28,7 +28,7 @@ export OBJDUMP=${OBJDUMP:-llvm-objdump} READELF=${READELF:-llvm-readelf}
 # gettext is libintl's on bionic (glibc has it in libc), and builds written
 # for glibc often leave $(LIBINTL) out of a link: a library then calls
 # libintl_gettext without needing libintl, and every program linked with it
-# fails. Once gettext is installed, every link is given libintl, which lld
+# fails. Once libintl is installed, every link is given libintl, which lld
 # records only where something uses it (--as-needed).
 if [[ -e /usr/lib/libintl.so ]]; then
     export LDFLAGS="${LDFLAGS:+$LDFLAGS }-Wl,--push-state,--as-needed,-lintl,--pop-state"

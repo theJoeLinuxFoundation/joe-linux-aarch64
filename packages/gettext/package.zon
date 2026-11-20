@@ -1,11 +1,11 @@
 .{
     .name = "gettext",
     .version = "1.0",
-    .release = 1,
+    .release = 2,
     .description = "GNU internationalization and localization tools and libraries",
     .license = "GPL-3.0-or-later AND LGPL-2.1-or-later",
     .sources = .{
         .{ .url = "https://ftpmirror.gnu.org/gettext/gettext-1.0.tar.xz", .sha256 = "71132a3fb71e68245b8f2ac4e9e97137d3e5c02f415636eb508ae607bc01add7" },
     },
-    .depends = .{ "bionic", "acl", "attr", "ncurses", "llvm-runtimes", "bash" },
+    .depends = .{ "bionic", "acl", "attr", "ncurses", "llvm-runtimes", "bash", "libintl" },
 }

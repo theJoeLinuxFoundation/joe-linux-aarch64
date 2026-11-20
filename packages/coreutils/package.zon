@@ -1,14 +1,14 @@
 .{
     .name = "coreutils",
     .version = "9.12",
-    .release = 4,
+    .release = 5,
     .description = "The basic file, shell and text manipulation utilities",
     .license = "GPL-3.0-or-later",
     .sources = .{
         .{ .url = "https://ftpmirror.gnu.org/coreutils/coreutils-9.12.tar.xz", .sha256 = "a480198559733e9b3da999e90543ac6f888a2caa544d8d664c5a1f17e528e210" },
         .{ .url = "https://www.linuxfromscratch.org/patches/lfs/development/coreutils-9.12-i18n-1.patch", .sha256 = "d82c2de2c43aea2423c4a11941915dc144727015a1821581f89f7a766923a1d0" },
     },
-    .depends = .{ "bionic", "acl", "attr", "libcap" },
+    .depends = .{ "bionic", "acl", "attr", "libcap", "libintl" },
     .build_depends = .{ "autoconf", "automake", "gettext", "perl" },
     // true and false do nothing, so they need no authority: declared, they
     // can be named in another program's exec: list (an undeclared program
