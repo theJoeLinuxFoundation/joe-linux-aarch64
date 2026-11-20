@@ -19,6 +19,11 @@ prepare() {
         PASS_CHANGE_TRIES PASS_ALWAYS_WARN CHFN_AUTH ENCRYPT_METHOD ENVIRON_FILE; do
         sed -i "s/^${function}/# &/" etc/login.defs
     done
+
+    # The subordinate id tools are linked without $(INTLLIBS), as nothing on
+    # glibc, whose libc has gettext, notices; on bionic gettext is libintl's.
+    grep -q '^@ENABLE_SUBIDS_TRUE@	$(MISCLIBS) -ldl$' src/Makefile.in
+    sed -i 's/^@ENABLE_SUBIDS_TRUE@\t$(MISCLIBS) -ldl$/@ENABLE_SUBIDS_TRUE@\t$(MISCLIBS) $(INTLLIBS) -ldl/' src/Makefile.in
 }
 
 build() {
@@ -28,7 +33,8 @@ build() {
         --with-yescrypt \
         --without-libbsd \
         --disable-logind \
-        --with-group-name-max-length=32
+        --with-group-name-max-length=32 \
+        --disable-rpath
     make
 }
 
