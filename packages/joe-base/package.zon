@@ -1,7 +1,7 @@
 .{
     .name = "joe-base",
     .version = "0.1",
-    .release = 1,
+    .release = 2,
     .description = "Everything a minimal joe Linux ARM system consists of",
     .license = "MIT",
     .depends = .{

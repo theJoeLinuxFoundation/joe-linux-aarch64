@@ -1,10 +1,13 @@
 # The kernel mounts the root itself (joe boots without an initramfs) and the
 # command line asks for it read-write; this makes sure, for a root mounted
-# read-only.
+# read-only. A root that is writable already is left alone: the live
+# medium's is an overlay, which refuses a remount ("No changes allowed in
+# reconfigure"), and mount(8) reconfigures the superblock even when nothing
+# changes.
 [service]
 name = "remount-root-rw"
 supervisor = "early-boot"
-exec = ["/usr/bin/mount", "-o", "remount,rw", "/"]
+exec = ["/bin/sh", "-c", "findmnt -n -o VFS-OPTIONS / | grep -qw ro || exit 0; exec /usr/bin/mount -o remount,rw /"]
 type = "oneshot"
 
 [restart]
