@@ -1,0 +1,60 @@
+joe Linux: program_invocation_name and program_invocation_short_name, glibc's names for the
+program's name, which GNU programs (kmod's tools among them) use under _GNU_SOURCE.
+
+diff --git i/libc/bionic/__progname.cpp w/libc/bionic/__progname.cpp
+--- i/libc/bionic/__progname.cpp
++++ w/libc/bionic/__progname.cpp
+@@ -37,6 +37,12 @@
+ __BIONIC_WEAK_VARIABLE_FOR_NATIVE_BRIDGE
+ const char* __progname;
+ 
++// joe Linux: glibc's names for the same, the name the program was run by
++// (argv[0]) and its last component, which GNU programs use under
++// _GNU_SOURCE (<errno.h>). setprogname() sets them all.
++char* program_invocation_name;
++char* program_invocation_short_name;
++
+ const char* getprogname() {
+   return __progname;
+ }
+@@ -44,4 +50,6 @@
+ void setprogname(const char* name) {
+   const char* last_slash = strrchr(name, '/');
+   __progname = (last_slash != nullptr) ? last_slash + 1 : name;
++  program_invocation_name = const_cast<char*>(name);
++  program_invocation_short_name = const_cast<char*>(__progname);
+ }
+diff --git i/libc/include/errno.h w/libc/include/errno.h
+--- i/libc/include/errno.h
++++ w/libc/include/errno.h
+@@ -57,4 +57,18 @@
+  */
+ #define errno (*__errno())
+ 
++#if defined(__USE_GNU)
++/**
++ * The name the program was run by, argv[0] (joe Linux, as glibc's
++ * program_invocation_name). setprogname() changes it.
++ */
++extern char* _Nonnull program_invocation_name;
++
++/**
++ * The last component of program_invocation_name, what getprogname() returns
++ * (joe Linux, as glibc's program_invocation_short_name).
++ */
++extern char* _Nonnull program_invocation_short_name;
++#endif
++
+ __END_DECLS
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1882,6 +1882,8 @@
+     get_current_dir_name;
+     getpass;
+     secure_getenv;
++    program_invocation_name; # var
++    program_invocation_short_name; # var
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
