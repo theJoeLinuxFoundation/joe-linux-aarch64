@@ -1,7 +1,7 @@
 .{
     .name = "bionic",
     .version = "17.0.0_r1",
-    .release = 27,
+    .release = 28,
     .description = "bionic, Android's C library, as joe Linux's: libc, libm, libdl and the dynamic linker",
     .license = "BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND Apache-2.0",
     // AOSP's bionic and the libraries its build uses, as `git archive` tars
@@ -26,6 +26,9 @@
         .{ .url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.0/llvm-project-23.1.0.src.tar.xz", .file = "llvm-project-23.1.0.src.tar.xz", .sha256 = "ab1f0e3ec52448c33e8782eaf0422504b87c7b016b22514653ee0d8fcee479ff" },
     },
     // The kernel's headers, as bionic ships them, are part of this package.
-    .depends = .{},
+    // liblog, part of this package for programs written for Android (Rust's
+    // standard library links it), uses libc++; LLVM's runtimes depend on
+    // bionic in turn.
+    .depends = .{"llvm-runtimes"},
     .build_depends = .{ "python", "ninja", "cmake" },
 }
