@@ -1,0 +1,170 @@
+joe Linux: fopencookie(3), glibc's custom streams, which musl has too; procps reads /proc through
+one. It is made with BSD's funopen64(3), which bionic has.
+
+diff --git i/libc/Android.bp w/libc/Android.bp
+index 74e1a50..c2d6f43 100644
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1104,6 +1104,7 @@ cc_library_static {
+         "bionic/joe_gnu_functions.cpp",
+         "bionic/joe_bsd_strings.cpp",
+         "bionic/joe_ethers.cpp",
++        "bionic/joe_fopencookie.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",
+diff --git i/libc/bionic/joe_fopencookie.cpp w/libc/bionic/joe_fopencookie.cpp
+new file mode 100644
+index 0000000..dbe3fe9
+--- /dev/null
++++ w/libc/bionic/joe_fopencookie.cpp
+@@ -0,0 +1,99 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++// joe Linux: fopencookie(3), glibc's custom streams, which musl has too and
++// bionic lacks; procps reads /proc through one. The stream is BSD's
++// funopen64(3), which bionic has, with the cookie and the functions in a
++// block that closing the stream frees.
++
++#include <errno.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++namespace {
++
++struct cookie_stream {
++  void* cookie;
++  cookie_io_functions_t funcs;
++};
++
++int cookie_read(void* p, char* buf, int n) {
++  auto s = static_cast<cookie_stream*>(p);
++  // As glibc: without a read function, the stream is at its end.
++  if (s->funcs.read == nullptr) return 0;
++  return s->funcs.read(s->cookie, buf, n);
++}
++
++int cookie_write(void* p, const char* buf, int n) {
++  auto s = static_cast<cookie_stream*>(p);
++  // As glibc: without a write function, what is written is thrown away.
++  if (s->funcs.write == nullptr) return n;
++  return s->funcs.write(s->cookie, buf, n);
++}
++
++fpos64_t cookie_seek(void* p, fpos64_t offset, int whence) {
++  auto s = static_cast<cookie_stream*>(p);
++  off64_t position = offset;
++  if (s->funcs.seek(s->cookie, &position, whence) != 0) return -1;
++  return position;
++}
++
++int cookie_close(void* p) {
++  auto s = static_cast<cookie_stream*>(p);
++  int result = s->funcs.close != nullptr ? s->funcs.close(s->cookie) : 0;
++  free(s);
++  return result;
++}
++
++}  // namespace
++
++FILE* fopencookie(void* cookie, const char* mode, cookie_io_functions_t funcs) {
++  // The access fopen(3)'s mode gives, read as glibc reads it: "r", "w" or
++  // "a", then a "+" as the second or third character. "a" has nothing to
++  // do: the write function decides where what it is given goes.
++  bool readable, writable;
++  switch (mode[0]) {
++    case 'r':
++      readable = true;
++      writable = false;
++      break;
++    case 'w':
++    case 'a':
++      readable = false;
++      writable = true;
++      break;
++    default:
++      errno = EINVAL;
++      return nullptr;
++  }
++  if (mode[1] == '+' || (mode[1] != '\0' && mode[2] == '+')) readable = writable = true;
++
++  auto s = static_cast<cookie_stream*>(malloc(sizeof(cookie_stream)));
++  if (s == nullptr) return nullptr;
++  s->cookie = cookie;
++  s->funcs = funcs;
++  // Without a seek function, the stream cannot seek.
++  FILE* fp = funopen64(s, readable ? cookie_read : nullptr, writable ? cookie_write : nullptr,
++                       funcs.seek != nullptr ? cookie_seek : nullptr, cookie_close);
++  if (fp == nullptr) free(s);
++  return fp;
++}
+diff --git i/libc/include/stdio.h w/libc/include/stdio.h
+index d64658c..119e8ec 100644
+--- i/libc/include/stdio.h
++++ w/libc/include/stdio.h
+@@ -331,6 +331,33 @@ __nodiscard FILE* _Nullable funopen64(const void* _Nullable __cookie,
+                 int (* _Nullable __close_fn)(void* _Nonnull)) __INTRODUCED_IN(24);
+ #endif
+ 
++#if defined(__USE_GNU)
++/*
++ * joe Linux: glibc's custom streams. fopencookie(3) makes a stream whose reads, writes, seeks and
++ * close call the given functions with the cookie; a function left null makes the stream read as
++ * at its end, throw away what it is given, or fail to seek.
++ */
++typedef ssize_t cookie_read_function_t(void* _Nullable __cookie, char* _Nonnull __buf, size_t __n);
++typedef ssize_t cookie_write_function_t(void* _Nullable __cookie, const char* _Nonnull __buf, size_t __n);
++typedef int cookie_seek_function_t(void* _Nullable __cookie, off64_t* _Nonnull __offset, int __whence);
++typedef int cookie_close_function_t(void* _Nullable __cookie);
++
++typedef struct _IO_cookie_io_functions_t {
++  cookie_read_function_t* _Nullable read;
++  cookie_write_function_t* _Nullable write;
++  cookie_seek_function_t* _Nullable seek;
++  cookie_close_function_t* _Nullable close;
++} cookie_io_functions_t;
++
++/**
++ * [fopencookie(3)](https://man7.org/linux/man-pages/man3/fopencookie.3.html) opens a stream
++ * on the given functions, with the access fopen()'s `mode` gives.
++ *
++ * Returns the stream on success, and returns NULL and sets `errno` on failure.
++ */
++__nodiscard FILE* _Nullable fopencookie(void* _Nullable __cookie, const char* _Nonnull __mode, cookie_io_functions_t __funcs);
++#endif
++
+ __nodiscard FILE* _Nullable fopen(const char* _Nonnull __path, const char* _Nonnull __mode);
+ 
+ #if __BIONIC_AVAILABILITY_GUARD(24)
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+index 578fa3e..e786767 100644
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1889,6 +1889,7 @@ LIBC_JOE { # introduced=37
+     ether_hostton;
+     ether_line;
+     ether_ntohost;
++    fopencookie;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
