@@ -1,3 +1,12 @@
+prepare() {
+    # Only libpam itself links libintl. libpam_misc and the modules translate
+    # their messages too, which on glibc, whose libc has gettext, needs
+    # nothing more; on bionic gettext is libintl's, so everything that uses
+    # libpam gets libintl with it (--as-needed keeps it only where used).
+    [ "$(grep -c '^  link_with: \[libpam\],$' libpam/meson.build)" = 1 ]
+    sed -i 's/^  link_with: \[libpam\],$/  link_with: [libpam],\n  dependencies: [libintl],/' libpam/meson.build
+}
+
 build() {
     mkdir build
     cd build
