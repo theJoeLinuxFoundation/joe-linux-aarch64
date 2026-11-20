@@ -1,0 +1,41 @@
+joe Linux: the rest of glibc's <sys/param.h>: NBBY, the bit array macros (setbit, clrbit, isset,
+isclr), NOFILE, NCARGS, CANBSIZ, MAXHOSTNAMELEN, NOGROUP and NODEV; dhcpcd uses NBBY.
+
+diff --git i/libc/include/sys/param.h w/libc/include/sys/param.h
+--- i/libc/include/sys/param.h
++++ w/libc/include/sys/param.h
+@@ -59,6 +59,34 @@
+  */
+ #define MAXSYMLINKS 40
+ 
++/*
++ * joe Linux: the rest of what glibc's <sys/param.h> has, which programs
++ * written for Linux use without checking (dhcpcd's NBBY).
++ */
++
++/** Bits in a byte. */
++#define NBBY CHAR_BIT
++
++/** Historical limits: open files, exec arguments, canonical input. */
++#define NOFILE 256
++#define NCARGS ARG_MAX
++#define CANBSIZ MAX_CANON
++
++/** The longest host name, without its terminating NUL. */
++#ifndef MAXHOSTNAMELEN
++#define MAXHOSTNAMELEN HOST_NAME_MAX
++#endif
++
++/** "No group" and "no device". */
++#define NOGROUP 65535
++#define NODEV ((dev_t) -1)
++
++/** Bit arrays of bytes: set, clear and test bit `i` of `a`. */
++#define setbit(a, i) (((unsigned char*)(a))[(i) / NBBY] |= 1 << ((i) % NBBY))
++#define clrbit(a, i) (((unsigned char*)(a))[(i) / NBBY] &= ~(1 << ((i) % NBBY)))
++#define isset(a, i) (((const unsigned char*)(a))[(i) / NBBY] & (1 << ((i) % NBBY)))
++#define isclr(a, i) ((((const unsigned char*)(a))[(i) / NBBY] & (1 << ((i) % NBBY))) == 0)
++
+ #ifndef howmany
+ /**
+  * howmany(3) returns the number of elements of size y needed to hold x.
