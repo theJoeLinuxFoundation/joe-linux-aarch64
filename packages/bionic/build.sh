@@ -31,6 +31,9 @@ build() {
 
 package() {
     bionic_headers /build/aosp "$DESTDIR"
+    # <sys/capability.h> is libcap's on a Linux system (glibc has none), and
+    # libcap's declares bionic's capget and capset too.
+    rm "$DESTDIR/usr/include/sys/capability.h"
     bionic_install_libc /build/out "$DESTDIR"
     bionic_install_linker /build/out "$DESTDIR"
     bionic_install_liblog /build/aosp /build/out "$DESTDIR"
