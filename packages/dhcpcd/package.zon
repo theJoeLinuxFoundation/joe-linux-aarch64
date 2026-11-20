@@ -1,7 +1,7 @@
 .{
     .name = "dhcpcd",
     .version = "10.5.2",
-    .release = 1,
+    .release = 2,
     .description = "DHCP, IPv4LL, IPv6 router solicitation and DHCPv6 client",
     .license = "BSD-2-Clause",
     .sources = .{

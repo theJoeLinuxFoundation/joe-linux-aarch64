@@ -1,6 +1,16 @@
 # Not in the book (Beyond LFS has dropped its page): the newest upstream
 # release, built as its BUILDING.md says, with the switches and the
 # privilege separation account of the book's last dhcpcd page.
+prepare() {
+    # configure compiles its open_memstream test with -Werror, and the test
+    # passes null pointers, which bionic's <stdio.h> marks _Nonnull (glibc's
+    # does not mark them): the warning failed the test, and dhcpcd wrote the
+    # hook scripts' environment to a file in /tmp instead, which its seccomp
+    # sandbox kills it for opening. The test is given real pointers.
+    sed -i 's|^\treturn open_memstream(NULL, NULL) != NULL ? 0 : 1;$|\tchar *b; size_t n;\n\treturn open_memstream(\&b, \&n) != NULL ? 0 : 1;|' configure
+    grep -q 'return open_memstream(&b, &n)' configure
+}
+
 build() {
     # Privilege separation as dhcpcd, seccomp filtering, the udev plugin
     # (dhcpcd waits for udev to finish naming an interface) and OpenSSL's
