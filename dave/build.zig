@@ -5,9 +5,10 @@ const Arch = enum { x86_64, aarch64 };
 
 pub fn build(b: *std.Build) void {
     // dave is always a static binary with no libc, so that no library upgrade
-    // on the target system can break the package manager.
+    // on the target system can break the package manager. By default it is
+    // for the machine it is built on.
     const target = b.standardTargetOptions(.{
-        .default_target = .{ .cpu_arch = .x86_64, .os_tag = .linux, .abi = .none },
+        .default_target = .{ .os_tag = .linux, .abi = .none },
     });
     const optimize = b.standardOptimizeOption(.{});
 
