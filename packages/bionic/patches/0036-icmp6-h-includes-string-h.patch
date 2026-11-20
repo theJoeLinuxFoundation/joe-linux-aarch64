@@ -1,0 +1,15 @@
+joe Linux: <netinet/icmp6.h> includes <string.h>, as glibc's does: its ICMP6_FILTER_ macros call
+memset(), and traceroute's sources use <string.h>'s functions with only <netinet/icmp6.h>.
+
+diff --git i/libc/include/netinet/icmp6.h w/libc/include/netinet/icmp6.h
+index 47cca03..aebda68 100644
+--- i/libc/include/netinet/icmp6.h
++++ w/libc/include/netinet/icmp6.h
+@@ -68,6 +68,7 @@
+ #include <sys/cdefs.h>
+ 
+ #include <netinet/in.h> /* android-added: glibc source compatibility. */
++#include <string.h> /* joe Linux: the ICMP6_FILTER_ macros call memset(), and glibc includes it. */
+ 
+ __BEGIN_DECLS
+ 
