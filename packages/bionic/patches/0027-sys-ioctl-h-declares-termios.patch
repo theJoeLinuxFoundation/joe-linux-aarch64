@@ -1,0 +1,18 @@
+joe Linux: <sys/ioctl.h> declares <termios.h>'s functions as well as the terminal constants it
+already makes visible; telnet includes <termios.h> only if VINTR is not yet defined.
+
+diff --git i/libc/include/sys/ioctl.h w/libc/include/sys/ioctl.h
+--- i/libc/include/sys/ioctl.h
++++ w/libc/include/sys/ioctl.h
+@@ -43,3 +43,11 @@
+ #include <linux/tty.h>
+ 
+ #include <bits/ioctl.h>
++
++/*
++ * joe Linux: <linux/termios.h> has made the terminal's constants visible
++ * (VINTR, ...), so programs take <termios.h> to have been included, and use
++ * tcgetattr() and the rest (telnet: "#ifndef VINTR #include <termios.h>").
++ * They are declared too. <termios.h> includes this header in turn.
++ */
++#include <termios.h>

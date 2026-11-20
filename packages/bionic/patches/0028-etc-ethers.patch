@@ -1,0 +1,164 @@
+joe Linux: ether_line, ether_ntohost and ether_hostton, which read /etc/ethers as glibc's do;
+inetutils' ifconfig uses them.
+
+diff --git i/libc/Android.bp w/libc/Android.bp
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1103,6 +1103,7 @@
+         "bionic/joe_usershell.cpp",
+         "bionic/joe_gnu_functions.cpp",
+         "bionic/joe_bsd_strings.cpp",
++        "bionic/joe_ethers.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",
+diff --git i/libc/bionic/joe_ethers.cpp w/libc/bionic/joe_ethers.cpp
+new file mode 100644
+--- /dev/null
++++ w/libc/bionic/joe_ethers.cpp
+@@ -0,0 +1,93 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++
++// joe Linux: ether_line(3), ether_ntohost(3) and ether_hostton(3), which
++// read /etc/ethers as glibc's do; inetutils' ifconfig uses them.
++
++#include <ctype.h>
++#include <netinet/ether.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++int ether_line(const char* line, ether_addr* addr, char* hostname) {
++  const char* p = line;
++  while (isspace(static_cast<unsigned char>(*p))) ++p;
++  const char* a = p;
++  while (*p != '\0' && !isspace(static_cast<unsigned char>(*p)) && *p != '#') ++p;
++  char text[32];
++  size_t n = p - a;
++  if (n == 0 || n >= sizeof(text)) return -1;
++  memcpy(text, a, n);
++  text[n] = '\0';
++  if (ether_aton_r(text, addr) == nullptr) return -1;
++  while (*p != '\0' && isspace(static_cast<unsigned char>(*p))) ++p;
++  const char* h = p;
++  while (*p != '\0' && !isspace(static_cast<unsigned char>(*p)) && *p != '#') ++p;
++  if (p == h) return -1;
++  memcpy(hostname, h, p - h);
++  hostname[p - h] = '\0';
++  return 0;
++}
++
++namespace {
++
++// Calls match(addr, name) on each entry of /etc/ethers until it returns true.
++template <typename Match>
++int each_entry(Match match) {
++  FILE* fp = fopen("/etc/ethers", "re");
++  if (fp == nullptr) return -1;
++  char* line = nullptr;
++  size_t capacity = 0;
++  int result = -1;
++  while (getline(&line, &capacity, fp) != -1) {
++    ether_addr addr;
++    char name[1024];
++    if (strlen(line) >= sizeof(name)) continue;
++    if (ether_line(line, &addr, name) == 0 && match(addr, name)) {
++      result = 0;
++      break;
++    }
++  }
++  free(line);
++  fclose(fp);
++  return result;
++}
++
++}  // namespace
++
++int ether_ntohost(char* hostname, const ether_addr* addr) {
++  return each_entry([&](const ether_addr& a, const char* name) {
++    if (memcmp(&a, addr, sizeof(a)) != 0) return false;
++    strcpy(hostname, name);
++    return true;
++  });
++}
++
++int ether_hostton(const char* hostname, ether_addr* addr) {
++  return each_entry([&](const ether_addr& a, const char* name) {
++    if (strcmp(name, hostname) != 0) return false;
++    *addr = a;
++    return true;
++  });
++}
+diff --git i/libc/include/netinet/ether.h w/libc/include/netinet/ether.h
+--- i/libc/include/netinet/ether.h
++++ w/libc/include/netinet/ether.h
+@@ -70,4 +70,35 @@
+  */
+ struct ether_addr* _Nullable ether_aton_r(const char* _Nonnull __ascii, struct ether_addr* _Nonnull __addr);
+ 
++/*
++ * joe Linux: /etc/ethers, which maps Ethernet addresses to host names, as
++ * glibc reads it: each line an address, blanks and a name ('#' starts a
++ * comment).
++ */
++
++/**
++ * [ether_line(3)](https://man7.org/linux/man-pages/man3/ether_line.3.html)
++ * parses a line of /etc/ethers into an address and a host name, which must
++ * have room for the name.
++ *
++ * Returns 0 on success, and -1 if the line is not an entry.
++ */
++int ether_line(const char* _Nonnull __line, struct ether_addr* _Nonnull __addr, char* _Nonnull __hostname);
++
++/**
++ * [ether_ntohost(3)](https://man7.org/linux/man-pages/man3/ether_ntohost.3.html)
++ * finds the host name of an address in /etc/ethers.
++ *
++ * Returns 0 on success, and -1 if there is none.
++ */
++int ether_ntohost(char* _Nonnull __hostname, const struct ether_addr* _Nonnull __addr);
++
++/**
++ * [ether_hostton(3)](https://man7.org/linux/man-pages/man3/ether_hostton.3.html)
++ * finds the address of a host name in /etc/ethers.
++ *
++ * Returns 0 on success, and -1 if there is none.
++ */
++int ether_hostton(const char* _Nonnull __hostname, struct ether_addr* _Nonnull __addr);
++
+ __END_DECLS
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1886,6 +1886,9 @@
+     program_invocation_short_name; # var
+     index; # arm64 riscv64 x86_64
+     rindex;
++    ether_hostton;
++    ether_line;
++    ether_ntohost;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
