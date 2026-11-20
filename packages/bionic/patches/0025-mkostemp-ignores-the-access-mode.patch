@@ -1,0 +1,19 @@
+joe Linux: mkostemp and mkostemps ignore an access mode in their flags, as glibc and musl do,
+instead of failing with EINVAL; eudev's temporary files ask for O_WRONLY.
+
+diff --git i/libc/upstream-openbsd/lib/libc/stdio/mktemp.c w/libc/upstream-openbsd/lib/libc/stdio/mktemp.c
+--- i/libc/upstream-openbsd/lib/libc/stdio/mktemp.c
++++ w/libc/upstream-openbsd/lib/libc/stdio/mktemp.c
+@@ -65,6 +65,12 @@
+ 		return(-1);
+ 	}
+ 
++	/*
++	 * joe Linux: the access mode is the function's own (O_RDWR); glibc and
++	 * musl drop one the caller gives (eudev passes O_WRONLY) rather than
++	 * refuse it.
++	 */
++	flags &= ~O_ACCMODE;
+ 	if (flags & ~MKOTEMP_FLAGS) {
+ 		errno = EINVAL;
+ 		return(-1);

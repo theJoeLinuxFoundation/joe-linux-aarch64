@@ -1,0 +1,57 @@
+joe Linux: names glibc's headers have that eudev uses: __bswap_16, __bswap_32 and __bswap_64
+in <byteswap.h>, RLIMIT_NLIMITS in <sys/resource.h>, IPTOS_LOWCOST in <netinet/ip.h> and
+SG_FLAG_LUN_INHIBIT in <scsi/sg.h>.
+
+diff --git i/libc/include/byteswap.h w/libc/include/byteswap.h
+--- i/libc/include/byteswap.h
++++ w/libc/include/byteswap.h
+@@ -56,4 +56,12 @@
+  */
+ #define bswap_64(x) __swap64(x)
+ 
++/*
++ * joe Linux: glibc's and musl's own names for the same, which programs use
++ * directly (eudev's sparse-endian.h, from systemd).
++ */
++#define __bswap_16(x) __swap16(x)
++#define __bswap_32(x) __swap32(x)
++#define __bswap_64(x) __swap64(x)
++
+ __END_DECLS
+diff --git i/libc/include/netinet/ip.h w/libc/include/netinet/ip.h
+--- i/libc/include/netinet/ip.h
++++ w/libc/include/netinet/ip.h
+@@ -78,6 +78,8 @@
+ #define	IPTOS_THROUGHPUT	0x08
+ #define	IPTOS_RELIABILITY	0x04
+ #define	IPTOS_MINCOST		0x02
++/* joe Linux: glibc's name for it too (the BSDs once called it so). */
++#define	IPTOS_LOWCOST		IPTOS_MINCOST
+ #if 1
+ /* ECN RFC3168 obsoletes RFC2481, and these will be deprecated soon. */
+ #define IPTOS_CE		0x01	/* congestion experienced */
+diff --git i/libc/include/sys/resource.h w/libc/include/sys/resource.h
+--- i/libc/include/sys/resource.h
++++ w/libc/include/sys/resource.h
+@@ -34,6 +34,9 @@
+ 
+ #include <linux/resource.h>
+ 
++/** glibc's and musl's name for the number of resource limits, RLIM_NLIMITS (joe Linux). */
++#define RLIMIT_NLIMITS RLIM_NLIMITS
++
+ __BEGIN_DECLS
+ 
+ /* The kernel header doesn't have these, but POSIX does. */
+diff --git i/libc/kernel/android/scsi/scsi/sg.h w/libc/kernel/android/scsi/scsi/sg.h
+--- i/libc/kernel/android/scsi/scsi/sg.h
++++ w/libc/kernel/android/scsi/scsi/sg.h
+@@ -42,6 +42,8 @@
+ #define SG_DXFER_TO_FROM_DEV (- 4)
+ #define SG_DXFER_UNKNOWN (- 5)
+ #define SG_FLAG_DIRECT_IO 1
++/* joe Linux: glibc's <scsi/sg.h> has it (the kernel's dropped it): leave the LUN alone. */
++#define SG_FLAG_LUN_INHIBIT 2
+ #define SG_FLAG_UNUSED_LUN_INHIBIT 2
+ #define SG_FLAG_MMAP_IO 4
+ #define SG_FLAG_NO_DXFER 0x10000
