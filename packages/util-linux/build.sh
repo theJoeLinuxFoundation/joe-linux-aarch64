@@ -4,6 +4,9 @@ build() {
     # --without-udev: eudev, which depends on util-linux, is built after it,
     # and lsblk and findmnt would otherwise link libudev only when a rebuild
     # finds it installed.
+    # No last and lslogins: they read login records, and bionic's utmp
+    # functions read none (Android keeps no records; bionic writes them with
+    # updwtmpx, for agetty, but cannot read them back).
     ./configure --bindir=/usr/bin \
         --libdir=/usr/lib \
         --runstatedir=/run \
@@ -19,6 +22,8 @@ build() {
         --disable-static \
         --without-python \
         --without-udev \
+        --disable-last \
+        --disable-lslogins \
         --disable-makeinstall-chown \
         --disable-makeinstall-setuid \
         ADJTIME_PATH=/var/lib/hwclock/adjtime \
@@ -28,6 +33,9 @@ build() {
 
 package() {
     make DESTDIR="$DESTDIR" install
+    # configure leaves agetty out without the C library's updwtmpx(), and
+    # joe-base's console logins are agetty.
+    [[ -e $DESTDIR/usr/sbin/agetty ]] || { echo "agetty was not built" >&2; return 1; }
 
     chmod 4755 "$DESTDIR/usr/bin/mount" "$DESTDIR/usr/bin/umount"
 
