@@ -1,7 +1,7 @@
 .{
     .name = "openssh",
     .version = "10.6p2",
-    .release = 2,
+    .release = 3,
     .description = "Secure shell client and server, with scp and sftp",
     .license = "BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND SSH-OpenSSH",
     .sources = .{

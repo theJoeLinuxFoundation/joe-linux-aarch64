@@ -5,7 +5,15 @@ build() {
     # libedit, ldns, SELinux, audit, and FIDO keys built in (libfido2).
     # --with-xauth only records where xauth would be, for X11 forwarding on a
     # system that has it.
+    # HAVE_ATTRIBUTE__SENTINEL__: configure says so only on OpenBSD, and
+    # elsewhere defines.h makes __sentinel__ an empty macro, which breaks
+    # bionic's <unistd.h> (execle's __sentinel__(1)); glibc's declares no
+    # sentinels. clang has the attribute. --with-mantype=man: configure would
+    # find no nroff in the build root and install the manuals unformatted
+    # as cat pages.
     ./configure --prefix=/usr \
+        CPPFLAGS=-DHAVE_ATTRIBUTE__SENTINEL__=1 \
+        --with-mantype=man \
         --sysconfdir=/etc/ssh \
         --with-privsep-path=/var/lib/sshd \
         --with-default-path=/usr/bin \
@@ -24,10 +32,10 @@ build() {
 
 package() {
     # install-nokeys: host keys belong to a machine, not to a package. They
-    # are made by sshd-keygen.service below.
+    # are made by the sshd-keygen service below.
     make DESTDIR="$DESTDIR" install-nokeys
     install -v -m755 contrib/ssh-copy-id "$DESTDIR/usr/bin"
-    install -v -m644 contrib/ssh-copy-id.1 "$DESTDIR/usr/share/man/man1"
+    install -v -Dm644 contrib/ssh-copy-id.1 "$DESTDIR/usr/share/man/man1/ssh-copy-id.1"
 
     # Passwords are checked by PAM, with the same rules as a console login:
     # the file is shadow's /etc/pam.d/login (Beyond LFS derives it from that
