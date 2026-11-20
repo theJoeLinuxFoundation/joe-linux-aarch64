@@ -1,0 +1,21 @@
+joe Linux: <limits.h> without <float.h>, as glibc's and musl's are. Programs written for them use
+names that <float.h> defines as macros: procps' ps pastes FLT_MIN into its own identifiers.
+
+diff --git i/libc/include/limits.h w/libc/include/limits.h
+index a8ff2cb..b2b1b60 100644
+--- i/libc/include/limits.h
++++ w/libc/include/limits.h
+@@ -54,8 +54,11 @@
+ 
+ #include <sys/cdefs.h>
+ 
+-/* Historically bionic exposed the content of <float.h> from <limits.h> and <sys/limits.h> too. */
+-#include <float.h>
++/*
++ * Historically bionic exposed the content of <float.h> from <limits.h> and <sys/limits.h> too.
++ * joe Linux: not any more, as glibc's and musl's do not; programs written for them use names that
++ * <float.h> defines as macros (procps, FLT_MIN).
++ */
+ 
+ /* Many of the POSIX limits come from the kernel. */
+ #include <linux/limits.h>
