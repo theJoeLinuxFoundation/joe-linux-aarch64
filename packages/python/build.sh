@@ -1,6 +1,13 @@
 prepare() {
     # A privileged Python runs only sealed code files; see the patch's header.
     patch -Np1 -i /recipe/joe-sealed-code.patch
+    # configure defines ANDROID_API_LEVEL wherever the compiler defines
+    # __ANDROID__, whatever the host, and with it sys.getandroidapilevel,
+    # which the standard library takes to mean an Android app: subprocess
+    # then runs shell commands with /system/bin/sh. Its check is made to
+    # find no Android API level.
+    sed -i '/^#ifdef __ANDROID__$/{N;s/^#ifdef __ANDROID__\nandroid_api = /#if 0 \/* joe Linux ARM: not an Android app *\/\nandroid_api = /}' configure
+    grep -q '^#if 0 /\* joe Linux ARM: not an Android app \*/$' configure
 }
 
 build() {

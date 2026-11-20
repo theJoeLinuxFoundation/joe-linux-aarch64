@@ -263,8 +263,12 @@ chroot_step zlib zlib-1.4.tar.gz '
 '
 
 # liblog: Python logs to Android's system log through it when it is embedded
-# in an Android app, and configure adds it only for an Android system.
+# in an Android app. Its configure is made to find no Android API level, as in
+# packages/python, so that the standard library does not take itself to be in
+# an Android app (subprocess would run /system/bin/sh).
 chroot_step python Python-3.15.2.tar.xz '
+    sed -i "/^#ifdef __ANDROID__\$/{N;s/^#ifdef __ANDROID__\nandroid_api = /#if 0 \/* joe Linux ARM: not an Android app *\/\nandroid_api = /}" configure
+    grep -q "^#if 0 /\* joe Linux ARM: not an Android app \*/\$" configure
     ./configure --prefix=/usr --enable-shared --without-ensurepip --without-static-libpython \
         LIBS=-llog
     make
