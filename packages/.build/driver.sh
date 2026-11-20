@@ -31,10 +31,13 @@ export OBJDUMP=${OBJDUMP:-llvm-objdump} READELF=${READELF:-llvm-readelf}
 # Python calls the platform "android", and other packages take paths meant
 # for Android apps. "linux-gnu" is what config.sub makes of plain "linux".
 # Where bionic differs from glibc, configure's tests find it as they would
-# anywhere. A recipe may still pass --build or --host itself.
+# anywhere. A recipe may still pass --build or --host itself. The target is
+# named too: configure scripts that ask for it (ncurses's) otherwise derive
+# it from an empty host alias, the host being cached.
 cat > /build/config.site <<'EOT'
 ac_cv_build=${ac_cv_build-aarch64-unknown-linux-gnu}
 ac_cv_host=${ac_cv_host-aarch64-unknown-linux-gnu}
+ac_cv_target=${ac_cv_target-aarch64-unknown-linux-gnu}
 EOT
 export CONFIG_SITE=/build/config.site
 # GNU tar run as root restores the owners recorded in an archive, which the

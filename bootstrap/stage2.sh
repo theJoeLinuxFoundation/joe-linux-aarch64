@@ -161,6 +161,7 @@ mkdir -p "$root/usr/share/joe"
 cat > "$root/usr/share/joe/config.site" <<'EOT'
 ac_cv_build=${ac_cv_build-aarch64-unknown-linux-gnu}
 ac_cv_host=${ac_cv_host-aarch64-unknown-linux-gnu}
+ac_cv_target=${ac_cv_target-aarch64-unknown-linux-gnu}
 EOT
 
 # chroot NAME TARBALL COMMANDS: run COMMANDS in the build root, in the
