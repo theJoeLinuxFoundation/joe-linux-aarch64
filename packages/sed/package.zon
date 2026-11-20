@@ -1,7 +1,7 @@
 .{
     .name = "sed",
     .version = "4.10",
-    .release = 3,
+    .release = 4,
     .description = "GNU stream editor",
     .license = "GPL-3.0-or-later",
     .sources = .{

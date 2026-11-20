@@ -1,7 +1,7 @@
 .{
     .name = "m4",
     .version = "1.4.21",
-    .release = 1,
+    .release = 2,
     .description = "Macro processor",
     .license = "GPL-3.0-or-later",
     .sources = .{

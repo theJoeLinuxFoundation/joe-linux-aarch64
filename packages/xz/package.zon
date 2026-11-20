@@ -1,7 +1,7 @@
 .{
     .name = "xz",
     .version = "5.8.4",
-    .release = 3,
+    .release = 4,
     .description = "LZMA and XZ compression tools and library",
     .license = "0BSD AND GPL-2.0-or-later",
     .sources = .{

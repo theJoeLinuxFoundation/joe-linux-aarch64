@@ -25,19 +25,21 @@ export CC=${CC:-cc} CXX=${CXX:-c++} AR=${AR:-llvm-ar} RANLIB=${RANLIB:-llvm-ranl
 export NM=${NM:-llvm-nm} STRIP=${STRIP:-llvm-strip} OBJCOPY=${OBJCOPY:-llvm-objcopy}
 export OBJDUMP=${OBJDUMP:-llvm-objdump} READELF=${READELF:-llvm-readelf}
 
-# joe Linux ARM is a Linux system, and configure scripts are told so:
-# config.guess would say aarch64-unknown-linux-android (clang defines
-# __ANDROID__), and then libtool makes libraries without versioned sonames,
-# Python calls the platform "android", and other packages take paths meant
-# for Android apps. "linux-gnu" is what config.sub makes of plain "linux".
-# Where bionic differs from glibc, configure's tests find it as they would
-# anywhere. A recipe may still pass --build or --host itself. The target is
-# named too: configure scripts that ask for it (ncurses's) otherwise derive
-# it from an empty host alias, the host being cached.
+# Configure scripts are told the system is aarch64-unknown-linux-android,
+# what config.guess says of bionic (clang defines __ANDROID__), whatever
+# version of config.guess a package carries. gnulib, in most of the GNU
+# userland, knows bionic by that name and compiles its workarounds for it,
+# which its C code, seeing __ANDROID__, then calls. Two things are taken
+# back where an Android host would make them wrong for a Linux system:
+# libtool's packaging (libtool_as_linux, below) and Python, whose recipe
+# says linux-gnu. A recipe sets ac_cv_build and ac_cv_host to say otherwise
+# (--host does not override a cached host). The target is named too:
+# configure scripts that ask for it (ncurses's) otherwise derive it from an
+# empty host alias, the host being cached.
 cat > /build/config.site <<'EOT'
-ac_cv_build=${ac_cv_build-aarch64-unknown-linux-gnu}
-ac_cv_host=${ac_cv_host-aarch64-unknown-linux-gnu}
-ac_cv_target=${ac_cv_target-aarch64-unknown-linux-gnu}
+ac_cv_build=${ac_cv_build-aarch64-unknown-linux-android}
+ac_cv_host=${ac_cv_host-aarch64-unknown-linux-android}
+ac_cv_target=${ac_cv_target-aarch64-unknown-linux-android}
 EOT
 export CONFIG_SITE=/build/config.site
 # GNU tar run as root restores the owners recorded in an archive, which the
@@ -51,6 +53,21 @@ unpack() {
 prepare() { :; }
 build() { :; }
 
+# libtool's case for an Android host is how Android apps package libraries:
+# no versioned sonames (an APK holds no symbolic links) and a run path in
+# every library. joe Linux ARM packages them as a Linux system does, so in
+# the configure scripts about to run, libtool's Android case is renamed out
+# of the way and the host matches the next one, GNU/Linux's ("linux*").
+# It runs after prepare(), which may regenerate them.
+libtool_as_linux() {
+    local f
+    while IFS= read -r -d '' f; do
+        if grep -q '^linux\*android\*)$' "$f"; then
+            sed -i 's/^linux\*android\*)$/linux*android-libtool-as-linux*)/' "$f"
+        fi
+    done < <(find . -name configure -type f -print0)
+}
+
 # shellcheck disable=SC1091
 source /recipe/build.sh
 declare -F package >/dev/null || { echo "build.sh does not define package()" >&2; exit 1; }
@@ -61,6 +78,8 @@ cd /build/src
 [[ -z ${PKG_SOURCE:-} ]] || unpack
 cd /build/src
 prepare
+cd /build/src
+libtool_as_linux
 cd /build/src
 build
 cd /build/src

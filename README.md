@@ -114,10 +114,14 @@ private `FILE` and its missing functions only by it. The few programs that
 take it to mean the Android system are corrected in their recipes (cmake, for
 one, calls its system "Android").
 
-Build systems, on the other hand, are told the system is Linux. Configure
-scripts see `aarch64-unknown-linux-gnu`, because on a system called Android,
-libtool drops versioned sonames and Python installs itself as an Android
-app's.
+Configure scripts are told the same: the system is
+`aarch64-unknown-linux-android`, which is how gnulib's build checks recognise
+bionic, and compile the workarounds its code then calls. Two packages'
+behaviour on an Android host is wrong for a Linux system, and is turned back:
+libtool would package libraries as Android apps do, without versioned
+sonames, so the build driver gives libtool its GNU/Linux case instead; and
+Python would build itself for embedding in an Android app, so its recipe
+calls the system linux-gnu.
 
 ## Building
 

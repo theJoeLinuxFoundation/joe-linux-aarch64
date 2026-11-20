@@ -1,7 +1,7 @@
 .{
     .name = "gawk",
     .version = "5.4.1",
-    .release = 3,
+    .release = 4,
     .description = "GNU implementation of the AWK text-processing language",
     .license = "GPL-3.0-or-later",
     .sources = .{
