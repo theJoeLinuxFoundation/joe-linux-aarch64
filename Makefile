@@ -4,8 +4,9 @@
 
 DAVE := dave/zig-out/bin/dave
 # Tools image builds need that the host may not have (mtools, xorriso,
-# mksquashfs) are built here.
-export PATH := $(CURDIR)/build/host-tools/bin:$(PATH)
+# mksquashfs) are built here. mkfs.vfat, mkfs.btrfs and sfdisk are in
+# /usr/sbin, which Debian leaves out of an ordinary user's PATH.
+export PATH := $(CURDIR)/build/host-tools/bin:$(PATH):/usr/sbin:/sbin
 # Images read joe's repository from build/repo and are configured to fetch from
 # REPO_URL: by default http://10.0.2.2:8643, this machine as a QEMU guest sees
 # it, as in joe Linux; https://joelinux.io/aarch64 for the published one.
