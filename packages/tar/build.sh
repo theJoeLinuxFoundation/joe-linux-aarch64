@@ -3,7 +3,9 @@ prepare() {
 }
 
 build() {
-    FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr
+    # LIBS: tar's programs are linked without $(LIBINTL), which glibc, whose
+    # libc has gettext, never shows; on bionic gettext is libintl's.
+    FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr LIBS=-lintl
     make
 }
 
