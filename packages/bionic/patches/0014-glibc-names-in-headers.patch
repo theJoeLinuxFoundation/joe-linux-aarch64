@@ -1,17 +1,21 @@
 joe Linux: names glibc and musl headers have that programs written for Linux use: ushort and
-ulong, MAXNAMLEN, the rest of glibc's _PATH_ macros, IPv6 address macros that take any
-pointer, and <scsi/sg.h>'s sense buffer as bytes.
+ulong, MAXNAMLEN, IFTODT and DTTOIF, the rest of glibc's _PATH_ macros, IPv6 address macros
+that take any pointer, and <scsi/sg.h>'s sense buffer as bytes.
 
 diff --git i/libc/include/dirent.h w/libc/include/dirent.h
 --- i/libc/include/dirent.h
 +++ w/libc/include/dirent.h
-@@ -38,6 +38,11 @@
+@@ -38,6 +38,15 @@
  #include <stdint.h>
  #include <sys/types.h>
  
 +#if defined(__USE_BSD) || defined(__USE_GNU)
 +/** BSD's name for NAME_MAX, the longest file name (joe Linux). */
 +#define MAXNAMLEN 255
++/** The `d_type` of a file whose `st_mode` is `mode` (joe Linux, as glibc). */
++#define IFTODT(mode) (((mode) & 0170000) >> 12)
++/** The `st_mode` file type of a `d_type` (joe Linux, as glibc). */
++#define DTTOIF(type) ((type) << 12)
 +#endif
 +
  __BEGIN_DECLS
