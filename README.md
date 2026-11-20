@@ -127,7 +127,10 @@ build roots are entered with bubblewrap in a user namespace.
 Requirements on the build machine:
 
 - x86_64 or aarch64 Linux with glibc, a C and C++ compiler, Python 3,
-  bubblewrap and [Zig 0.17.1](https://ziglang.org/download/);
+  bubblewrap, git, curl and [Zig 0.17.1](https://ziglang.org/download/),
+  with the headers of xz and zstd (for mksquashfs) and of OpenSSL, and
+  pkg-config (for Rust's cargo). On Debian:
+  `apt install build-essential python3 bubblewrap btrfs-progs git curl liblzma-dev libzstd-dev libssl-dev pkg-config`;
 - a build directory on btrfs (`build/` in this repository);
 - on x86_64 only, qemu-user registered with binfmt_misc for aarch64, with the
   `F` flag (as distributions' `qemu-user-static-binfmt` packages do);
