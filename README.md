@@ -91,7 +91,9 @@ What turns it from Android's C library into a Linux one is in
 - functions the headers declare under another name are also exported under
   their own, so that configure scripts' link tests tell the truth;
 - `<sched.h>` gives programs the kernel's constants without
-  `struct clone_args`, whose member names collide with programs' macros.
+  `struct clone_args`, whose member names collide with programs' macros;
+- `errno` is zero when `main` starts, and functions that succeed leave it
+  alone on kernels that cannot name memory mappings (Android's all can).
 
 Beside libc, bionic's package also carries:
 - **`liblog`**, Android's logging library, for programs written for Android

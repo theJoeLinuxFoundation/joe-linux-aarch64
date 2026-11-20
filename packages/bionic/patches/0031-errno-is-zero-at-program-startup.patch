@@ -1,0 +1,51 @@
+joe Linux: errno is zero when main starts, as C requires and as programs written for glibc expect
+when they read it without setting it first. The linker's and libc's start left ENOENT in it.
+
+diff --git i/libc/bionic/libc_init_dynamic.cpp w/libc/bionic/libc_init_dynamic.cpp
+index 9f59370..e4503b2 100644
+--- i/libc/bionic/libc_init_dynamic.cpp
++++ w/libc/bionic/libc_init_dynamic.cpp
+@@ -40,6 +40,7 @@
+  */
+ 
+ #include <elf.h>
++#include <errno.h>
+ #include <stddef.h>
+ #include <stdint.h>
+ #include <stdlib.h>
+@@ -165,6 +166,11 @@ __noreturn void __libc_init(void* raw_args,
+   // will not affect the process.
+   __libc_shared_globals()->memtag_stack_dlopen_callback = memtag_stack_dlopen_callback;
+ 
++  // joe Linux: C requires errno to be zero at program startup, and programs written for glibc
++  // read it without setting it first (after strtol, say). What the linker and libc do before
++  // main can leave an error in it (main started with ENOENT).
++  errno = 0;
++
+   exit(main(args.argc - __libc_shared_globals()->initial_linker_arg_count,
+             args.argv + __libc_shared_globals()->initial_linker_arg_count,
+             args.envp));
+diff --git i/libc/bionic/libc_init_static.cpp w/libc/bionic/libc_init_static.cpp
+index a2d69e6..fbf0b08 100644
+--- i/libc/bionic/libc_init_static.cpp
++++ w/libc/bionic/libc_init_static.cpp
+@@ -28,6 +28,7 @@
+ 
+ #include <android/api-level.h>
+ #include <elf.h>
++#include <errno.h>
+ #include <malloc.h>
+ #include <signal.h>
+ #include <stddef.h>
+@@ -202,6 +203,11 @@ __attribute__((no_sanitize("memtag"))) __noreturn static void __real_libc_init(
+   // Wait until everything is initialized before enabled systracing.
+   __get_bionic_tls().bionic_systrace_enabled = true;
+ 
++  // joe Linux: C requires errno to be zero at program startup, and programs written for glibc
++  // read it without setting it first (after strtol, say). What the linker and libc do before
++  // main can leave an error in it (main started with ENOENT).
++  errno = 0;
++
+   exit(main(args.argc, args.argv, args.envp));
+ }
+ 
