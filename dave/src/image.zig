@@ -473,8 +473,10 @@ pub const Builder = struct {
         root.deleteTree(b.io, "var/cache/dave") catch {};
         root.deleteTree(b.io, "etc/dave") catch {};
         root.deleteTree(b.io, "usr/lib/dave/db") catch {};
-        _ = root.statFile(b.io, "init", .{}) catch return b.fail("the initramfs has no /init (the spec's initrd overlay should link it to systemd)", .{});
-        _ = root.statFile(b.io, "etc/initrd-release", .{}) catch return b.fail("the initramfs has no /etc/initrd-release, which tells systemd where it runs", .{});
+        // dynamod-init knows it runs in an initramfs from its root (ramfs or
+        // tmpfs) and the command line (root=, dynamod.live): no
+        // /etc/initrd-release to require, as systemd needs one.
+        _ = root.statFile(b.io, "init", .{}) catch return b.fail("the initramfs has no /init (the spec's initrd overlay should link it to dynamod-init)", .{});
     }
 
     /// Writes the live medium: everything else is ready by now, the

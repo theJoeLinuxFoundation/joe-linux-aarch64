@@ -1,7 +1,7 @@
 .{
     .name = "dave",
     .version = "0.3.0",
-    .release = 1,
+    .release = 2,
     .description = "The joe Linux package manager and deployment tool",
     .license = "MIT",
     // Its services run under dynamod; it calls `reboot` (dynamod) and
