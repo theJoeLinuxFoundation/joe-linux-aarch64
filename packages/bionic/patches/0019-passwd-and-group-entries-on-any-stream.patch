@@ -1,0 +1,241 @@
+joe Linux: fgetpwent, fgetgrent, their _r forms, putpwent and putgrent: entries in /etc/passwd's
+and /etc/group's format read from and written to any stream, as glibc has them; Linux-PAM's
+pam_unix rewrites /etc/passwd with them.
+
+diff --git i/libc/bionic/grp_pwd.cpp w/libc/bionic/grp_pwd.cpp
+--- i/libc/bionic/grp_pwd.cpp
++++ w/libc/bionic/grp_pwd.cpp
+@@ -44,6 +44,7 @@
+ #include <grp.h>
+ #include <pwd.h>
+ #include <stdint.h>
++#include <stdio.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <sys/mman.h>
+@@ -459,3 +460,125 @@
+   if (!found) s->getgrent_offset = -1;
+   return group_result(error, result);
+ }
++
++// joe Linux: fgetpwent() and fgetgrent(), with their _r forms, read entries
++// in /etc/passwd's and /etc/group's format from any stream, and putpwent()
++// and putgrent() write them, as glibc's do. Linux-PAM's pam_unix rewrites
++// /etc/passwd with them. Lines that are not entries are passed over.
++
++namespace {
++
++// Reads lines from fp until one is an entry, then returns fill(fields, uid,
++// gid): 0, or an error. Returns ENOENT at the end of the stream. After ERANGE
++// the stream is put back before the entry, so that a caller can retry it
++// with a larger buffer, as glibc allows.
++template <typename F, typename Fill>
++int read_entry(FILE* fp, Fill fill) {
++  char* line = nullptr;
++  size_t capacity = 0;
++  int error = ENOENT;
++  while (true) {
++    off_t start = ftello(fp);
++    ssize_t n = getline(&line, &capacity, fp);
++    if (n == -1) break;
++    const char* eol = line + n;
++    if (n > 0 && line[n - 1] == '\n') --eol;
++    F f;
++    id_t uid = 0, gid;
++    if (!f.split(line, eol)) continue;
++    if constexpr (F::kCount == PasswdFields::kCount) {
++      if (!f.id(2, &uid) || !f.id(3, &gid)) continue;
++    } else {
++      if (!f.id(2, &gid)) continue;
++    }
++    error = fill(f, uid, gid);
++    if (error == ERANGE && start != -1) fseeko(fp, start, SEEK_SET);
++    break;
++  }
++  free(line);
++  return error;
++}
++
++// Whether a string would end its field, or its entry, early.
++bool breaks_entry(const char* s, const char* separators) {
++  return s != nullptr && strpbrk(s, separators) != nullptr;
++}
++
++const char* or_empty(const char* s) {
++  return s != nullptr ? s : "";
++}
++
++}  // namespace
++
++int fgetpwent_r(FILE* fp, passwd* pw, char* buf, size_t len, passwd** result) {
++  *result = nullptr;
++  int error = read_entry<PasswdFields>(fp, [&](const PasswdFields& f, id_t u, id_t g) {
++    return to_passwd(f, u, g, pw, buf, len);
++  });
++  if (error == 0) *result = pw;
++  return error;
++}
++
++passwd* fgetpwent(FILE* fp) {
++  passwd_state_t* s = passwd_state();
++  passwd* result;
++  int error = fgetpwent_r(fp, &s->passwd_, s->buffer_, sizeof(s->buffer_), &result);
++  return passwd_result(error == ENOENT ? 0 : error, result);
++}
++
++int fgetgrent_r(FILE* fp, group* gr, char* buf, size_t len, group** result) {
++  *result = nullptr;
++  int error = read_entry<GroupFields>(fp, [&](const GroupFields& f, id_t, id_t g) {
++    return to_group(f, g, gr, buf, len);
++  });
++  if (error == 0) *result = gr;
++  return error;
++}
++
++group* fgetgrent(FILE* fp) {
++  group_state_t* s = group_state();
++  group* result;
++  int error = fgetgrent_r(fp, &s->group_, s->buffer_, sizeof(s->buffer_), &result);
++  return group_result(error == ENOENT ? 0 : error, result);
++}
++
++int putpwent(const passwd* pw, FILE* fp) {
++#ifdef __LP64__
++  const char* gecos = pw != nullptr ? pw->pw_gecos : nullptr;
++#else
++  const char* gecos = nullptr;
++#endif
++  if (pw == nullptr || fp == nullptr || pw->pw_name == nullptr ||
++      breaks_entry(pw->pw_name, ":\n") || breaks_entry(pw->pw_passwd, ":\n") ||
++      breaks_entry(gecos, ":\n") || breaks_entry(pw->pw_dir, ":\n") ||
++      breaks_entry(pw->pw_shell, ":\n")) {
++    errno = EINVAL;
++    return -1;
++  }
++  int n = fprintf(fp, "%s:%s:%u:%u:%s:%s:%s\n", pw->pw_name, or_empty(pw->pw_passwd),
++                  pw->pw_uid, pw->pw_gid, or_empty(gecos), or_empty(pw->pw_dir),
++                  or_empty(pw->pw_shell));
++  return n < 0 ? -1 : 0;
++}
++
++int putgrent(const group* gr, FILE* fp) {
++  if (gr == nullptr || fp == nullptr || gr->gr_name == nullptr ||
++      breaks_entry(gr->gr_name, ":\n") || breaks_entry(gr->gr_passwd, ":\n")) {
++    errno = EINVAL;
++    return -1;
++  }
++  for (char** m = gr->gr_mem; m != nullptr && *m != nullptr; ++m) {
++    if (breaks_entry(*m, ":,\n")) {
++      errno = EINVAL;
++      return -1;
++    }
++  }
++  flockfile(fp);
++  bool ok = fprintf(fp, "%s:%s:%u:", gr->gr_name, or_empty(gr->gr_passwd), gr->gr_gid) >= 0;
++  for (char** m = gr->gr_mem; ok && m != nullptr && *m != nullptr; ++m) {
++    ok = fprintf(fp, "%s%s", m == gr->gr_mem ? "" : ",", *m) >= 0;
++  }
++  ok = ok && putc_unlocked('\n', fp) != EOF;
++  funlockfile(fp);
++  return ok ? 0 : -1;
++}
+diff --git i/libc/include/grp.h w/libc/include/grp.h
+--- i/libc/include/grp.h
++++ w/libc/include/grp.h
+@@ -75,6 +75,38 @@
+ int getgrouplist(const char* _Nonnull __user, gid_t __group, gid_t* __BIONIC_COMPLICATED_NULLNESS __groups, int* _Nonnull __group_count);
+ int initgroups(const char* _Nonnull __user, gid_t __group);
+ 
++/*
++ * joe Linux: entries in /etc/group's format read from, or written to, any
++ * stream, as glibc has them. They take a FILE*: FILE is struct __sFILE,
++ * declared here so that the prototypes name the same struct as <stdio.h>.
++ */
++struct __sFILE;
++
++/**
++ * [fgetgrent(3)](https://man7.org/linux/man-pages/man3/fgetgrent.3.html)
++ * reads the next entry from a stream in /etc/group's format.
++ *
++ * Returns a pointer to a thread-local entry, or NULL at the end of the
++ * stream or on failure (when it sets `errno`).
++ */
++struct group* _Nullable fgetgrent(struct __sFILE* _Nonnull __fp);
++
++/**
++ * [fgetgrent_r(3)](https://man7.org/linux/man-pages/man3/fgetgrent_r.3.html)
++ * is fgetgrent() into the caller's entry and buffer.
++ *
++ * Returns 0, ENOENT at the end of the stream, or ERANGE if the buffer is too small.
++ */
++int fgetgrent_r(struct __sFILE* _Nonnull __fp, struct group* _Nonnull __grp, char* _Nonnull __buf, size_t __n, struct group* _Nullable * _Nonnull __result);
++
++/**
++ * [putgrent(3)](https://man7.org/linux/man-pages/man3/putgrent.3.html)
++ * writes an entry to a stream in /etc/group's format.
++ *
++ * Returns 0 on success, and returns -1 and sets `errno` on failure.
++ */
++int putgrent(const struct group* _Nonnull __grp, struct __sFILE* _Nonnull __fp);
++
+ __END_DECLS
+ 
+ #endif
+diff --git i/libc/include/pwd.h w/libc/include/pwd.h
+--- i/libc/include/pwd.h
++++ w/libc/include/pwd.h
+@@ -100,6 +100,38 @@
+ int getpwnam_r(const char* _Nonnull __name, struct passwd* _Nonnull __pwd, char* _Nonnull __buf, size_t __n, struct passwd* _Nullable * _Nonnull __result);
+ int getpwuid_r(uid_t __uid, struct passwd* _Nonnull __pwd, char* _Nonnull __buf, size_t __n, struct passwd* _Nullable * _Nonnull __result);
+ 
++/*
++ * joe Linux: entries in /etc/passwd's format read from, or written to, any
++ * stream, as glibc has them. They take a FILE*: FILE is struct __sFILE,
++ * declared here so that the prototypes name the same struct as <stdio.h>.
++ */
++struct __sFILE;
++
++/**
++ * [fgetpwent(3)](https://man7.org/linux/man-pages/man3/fgetpwent.3.html)
++ * reads the next entry from a stream in /etc/passwd's format.
++ *
++ * Returns a pointer to a thread-local entry, or NULL at the end of the
++ * stream or on failure (when it sets `errno`).
++ */
++struct passwd* _Nullable fgetpwent(struct __sFILE* _Nonnull __fp);
++
++/**
++ * [fgetpwent_r(3)](https://man7.org/linux/man-pages/man3/fgetpwent_r.3.html)
++ * is fgetpwent() into the caller's entry and buffer.
++ *
++ * Returns 0, ENOENT at the end of the stream, or ERANGE if the buffer is too small.
++ */
++int fgetpwent_r(struct __sFILE* _Nonnull __fp, struct passwd* _Nonnull __pwd, char* _Nonnull __buf, size_t __n, struct passwd* _Nullable * _Nonnull __result);
++
++/**
++ * [putpwent(3)](https://man7.org/linux/man-pages/man3/putpwent.3.html)
++ * writes an entry to a stream in /etc/passwd's format.
++ *
++ * Returns 0 on success, and returns -1 and sets `errno` on failure.
++ */
++int putpwent(const struct passwd* _Nonnull __pwd, struct __sFILE* _Nonnull __fp);
++
+ __END_DECLS
+ 
+ #endif
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1869,6 +1869,12 @@
+     mq_unlink;
+     shm_open;
+     shm_unlink;
++    fgetgrent;
++    fgetgrent_r;
++    fgetpwent;
++    fgetpwent_r;
++    putgrent;
++    putpwent;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {

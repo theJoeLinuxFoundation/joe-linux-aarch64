@@ -1,0 +1,240 @@
+joe Linux: the glibc interfaces shadow's tools use that bionic lacks: strdupa and strndupa,
+explicit_bzero, getusershell, setusershell and endusershell, _PATH_SHADOW, and <netdb.h> making
+<netinet/in.h> visible.
+
+diff --git i/libc/Android.bp w/libc/Android.bp
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1100,6 +1100,7 @@
+         "bionic/joe_shadow.cpp",
+         "bionic/joe_strverscmp.cpp",
+         "bionic/joe_posix_ipc.cpp",
++        "bionic/joe_usershell.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",
+diff --git i/libc/bionic/joe_usershell.cpp w/libc/bionic/joe_usershell.cpp
+new file mode 100644
+--- /dev/null
++++ w/libc/bionic/joe_usershell.cpp
+@@ -0,0 +1,100 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++
++// joe Linux: getusershell(3), setusershell() and endusershell(), and
++// explicit_bzero(3), which glibc has and bionic lacks; shadow's tools use
++// them. Like glibc's, getusershell() returns the first word of each line of
++// /etc/shells that starts, after anything else, with '/' (comments, after
++// '#', excepted), and /bin/sh and /bin/csh when there is no /etc/shells.
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <unistd.h>
++
++namespace {
++
++char* g_text = nullptr;      // /etc/shells, its words NUL-terminated in place
++char** g_shells = nullptr;   // the words, NULL-terminated
++size_t g_next = 0;
++char* g_default[] = {const_cast<char*>("/bin/sh"), const_cast<char*>("/bin/csh"), nullptr};
++
++char** read_shells() {
++  FILE* fp = fopen("/etc/shells", "re");
++  if (fp == nullptr) return g_default;
++  size_t capacity = 0;
++  ssize_t size = getdelim(&g_text, &capacity, '\0', fp);
++  fclose(fp);
++  if (size <= 0) {
++    free(g_text);
++    g_text = nullptr;
++    size = 0;
++  }
++  size_t lines = 1;
++  for (ssize_t i = 0; i < size; ++i) lines += (g_text[i] == '\n');
++  g_shells = static_cast<char**>(calloc(lines + 1, sizeof(char*)));
++  if (g_shells == nullptr) return g_default;
++  size_t n = 0;
++  char* p = g_text;
++  char* end = g_text + size;
++  while (p < end) {
++    char* eol = static_cast<char*>(memchr(p, '\n', end - p));
++    if (eol == nullptr) eol = end;
++    char* s = p;
++    while (s < eol && *s != '#' && *s != '/') ++s;
++    if (s < eol && *s == '/') {
++      char* e = s;
++      while (e < eol && *e != '#' && *e != ' ' && *e != '\t' && *e != '\r') ++e;
++      *e = '\0';
++      g_shells[n++] = s;
++    }
++    p = eol + 1;
++  }
++  g_shells[n] = nullptr;
++  return g_shells;
++}
++
++}  // namespace
++
++char* getusershell() {
++  if (g_shells == nullptr) g_shells = read_shells();
++  char* shell = g_shells[g_next];
++  if (shell != nullptr) ++g_next;
++  return shell;
++}
++
++void endusershell() {
++  if (g_shells != g_default) free(g_shells);
++  free(g_text);
++  g_text = nullptr;
++  g_shells = nullptr;
++  g_next = 0;
++}
++
++void setusershell() {
++  endusershell();
++}
++
++void explicit_bzero(void* dst, size_t n) {
++  memset_explicit(dst, 0, n);
++}
+diff --git i/libc/include/netdb.h w/libc/include/netdb.h
+--- i/libc/include/netdb.h
++++ w/libc/include/netdb.h
+@@ -64,6 +64,9 @@
+ #include <sys/cdefs.h>
+ #include <sys/types.h>
+ #include <sys/socket.h>
++/* joe Linux: as glibc's and musl's (and as POSIX allows), <netdb.h> makes
++ * <netinet/in.h> visible, for the struct sockaddr_in in getaddrinfo()'s results. */
++#include <netinet/in.h>
+ 
+ __BEGIN_DECLS
+ 
+diff --git i/libc/include/shadow.h w/libc/include/shadow.h
+--- i/libc/include/shadow.h
++++ w/libc/include/shadow.h
+@@ -70,6 +70,9 @@
+ int sgetspent_r(const char* _Nonnull __line, struct spwd* _Nonnull __entry, char* _Nonnull __buf, size_t __size, struct spwd* _Nullable * _Nonnull __result);
+ int fgetspent_r(FILE* _Nonnull __fp, struct spwd* _Nonnull __entry, char* _Nonnull __buf, size_t __size, struct spwd* _Nullable * _Nonnull __result);
+ 
++/** The shadow password file (joe Linux, as glibc). */
++#define _PATH_SHADOW "/etc/shadow"
++
+ /** Takes the lock tools hold while they rewrite /etc/passwd and /etc/shadow. */
+ int lckpwdf(void);
+ /** Releases the lock lckpwdf() took. */
+diff --git i/libc/include/string.h w/libc/include/string.h
+--- i/libc/include/string.h
++++ w/libc/include/string.h
+@@ -83,6 +83,39 @@
+ #undef __BIONIC_MEMSET_EXPLICIT_INLINE
+ #endif
+ 
++/**
++ * [explicit_bzero(3)](https://man7.org/linux/man-pages/man3/explicit_bzero.3.html)
++ * zeroes the next `n` bytes of `dst`, and won't be optimized out by the
++ * compiler (joe Linux, as glibc and the BSDs: memset_explicit() with zero).
++ */
++void explicit_bzero(void* _Nonnull __dst, size_t __n);
++
++#if defined(__USE_GNU)
++/**
++ * strdupa(3) is strdup() on the stack: the copy lasts until the calling
++ * function returns (joe Linux, as glibc's macro).
++ */
++#define strdupa(__s) \
++  (__extension__({ \
++    const char* __strdupa_s = (__s); \
++    size_t __strdupa_n = strlen(__strdupa_s) + 1; \
++    (char*)__builtin_memcpy(__builtin_alloca(__strdupa_n), __strdupa_s, __strdupa_n); \
++  }))
++
++/**
++ * strndupa(3) is strndup() on the stack: the copy lasts until the calling
++ * function returns (joe Linux, as glibc's macro).
++ */
++#define strndupa(__s, __n) \
++  (__extension__({ \
++    const char* __strndupa_s = (__s); \
++    size_t __strndupa_n = strnlen(__strndupa_s, (__n)); \
++    char* __strndupa_d = (char*)__builtin_alloca(__strndupa_n + 1); \
++    __strndupa_d[__strndupa_n] = '\0'; \
++    (char*)__builtin_memcpy(__strndupa_d, __strndupa_s, __strndupa_n); \
++  }))
++#endif
++
+ void* _Nullable memmem(const void* _Nonnull __haystack, size_t __haystack_size, const void* _Nonnull __needle, size_t __needle_size) __attribute_pure__;
+ 
+ char* _Nullable strchr(const char* _Nonnull __s, int __ch) __attribute_pure__;
+diff --git i/libc/include/unistd.h w/libc/include/unistd.h
+--- i/libc/include/unistd.h
++++ w/libc/include/unistd.h
+@@ -460,6 +460,19 @@
+  */
+ int getpagesize(void) __attribute_const__;
+ 
++/**
++ * [getusershell(3)](https://man7.org/linux/man-pages/man3/getusershell.3.html)
++ * returns the next login shell listed in /etc/shells, or NULL after the last
++ * (joe Linux, as glibc: /bin/sh and /bin/csh if there is no /etc/shells).
++ */
++char* _Nullable getusershell(void);
++
++/** setusershell() makes getusershell() start again, reading /etc/shells anew. */
++void setusershell(void);
++
++/** endusershell() frees what getusershell() read. */
++void endusershell(void);
++
+ long syscall(long __number, ...);
+ 
+ int daemon(int __no_chdir, int __no_close);
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1875,6 +1875,10 @@
+     fgetpwent_r;
+     putgrent;
+     putpwent;
++    endusershell;
++    explicit_bzero;
++    getusershell;
++    setusershell;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
+diff --git i/libc/upstream-openbsd/android/include/openbsd-compat.h w/libc/upstream-openbsd/android/include/openbsd-compat.h
+--- i/libc/upstream-openbsd/android/include/openbsd-compat.h
++++ w/libc/upstream-openbsd/android/include/openbsd-compat.h
+@@ -41,9 +41,7 @@
+ #define PROTO_NORMAL(x)
+ #define WRAP(x) x
+ 
+-#if !defined(ANDROID_HOST_MUSL)
+-#define explicit_bzero(p, s) memset_explicit(p, 0, s)
+-#endif
++// joe Linux: bionic has explicit_bzero() itself (<string.h>).
+ 
+ #if defined(ANDROID_HOST_MUSL)
+ #define __LIBC_HIDDEN__ __attribute__((visibility("hidden")))
