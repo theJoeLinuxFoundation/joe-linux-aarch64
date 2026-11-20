@@ -1,0 +1,386 @@
+joe Linux: naming an anonymous mapping leaves errno as it was. Naming needs a kernel built with
+CONFIG_ANON_VMA_NAME, as Android's kernels are and many Linux kernels (Debian's cloud kernels, for
+one) are not; there every name is refused with EINVAL, and malloc, atexit, dlopen and new threads
+left that in errno when they succeeded. The kernel's kallsyms, which reads errno after getline
+returns -1, failed on the empty file its first pass reads. Every name now goes through
+__bionic_set_vma_name (platform/bionic/vma_name.h); scudo's and GWP-ASan's are patched in
+patches/external/.
+
+diff --git i/libc/bionic/android_crash_detail.cpp w/libc/bionic/android_crash_detail.cpp
+index 30ce505..3d78b31 100644
+--- i/libc/bionic/android_crash_detail.cpp
++++ w/libc/bionic/android_crash_detail.cpp
+@@ -39,6 +39,8 @@
+ #include <sys/mman.h>
+ #include <sys/prctl.h>
+ 
++#include "platform/bionic/vma_name.h"
++
+ #include "private/ScopedPthreadMutexLocker.h"
+ #include "private/bionic_defs.h"
+ #include "private/bionic_globals.h"
+@@ -80,7 +82,7 @@ crash_detail_t* android_crash_detail_register(const void* name, size_t name_size
+       async_safe_format_log(ANDROID_LOG_ERROR, "libc", "failed to allocate crash_detail_page: %m");
+       return nullptr;
+     }
+-    prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, map, size, "crash details");
++    __bionic_set_vma_name(map, size, "crash details");
+     page = reinterpret_cast<struct crash_detail_page_t*>(map);
+     page->prev = prev;
+     __libc_shared_globals()->crash_detail_page = page;
+diff --git i/libc/bionic/android_set_abort_message.cpp w/libc/bionic/android_set_abort_message.cpp
+index 05adf3e..e5017a0 100644
+--- i/libc/bionic/android_set_abort_message.cpp
++++ w/libc/bionic/android_set_abort_message.cpp
+@@ -38,6 +38,8 @@
+ #include <sys/mman.h>
+ #include <sys/prctl.h>
+ 
++#include "platform/bionic/vma_name.h"
++
+ #include "private/bionic_defs.h"
+ #include "private/bionic_globals.h"
+ #include "private/ScopedPthreadMutexLocker.h"
+@@ -92,7 +94,7 @@ void android_set_abort_message(const char* msg) {
+ 
+   // Name the abort message mapping to make it easier for tools to find the
+   // mapping.
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, map, size, "abort message");
++  __bionic_set_vma_name(map, size, "abort message");
+ 
+   magic_abort_msg_t* new_magic_abort_message = reinterpret_cast<magic_abort_msg_t*>(map);
+   fill_abort_message_magic(new_magic_abort_message);
+diff --git i/libc/bionic/atexit.cpp w/libc/bionic/atexit.cpp
+index 29f9c7b..7483eda 100644
+--- i/libc/bionic/atexit.cpp
++++ w/libc/bionic/atexit.cpp
+@@ -41,6 +41,7 @@
+ #include <async_safe/log.h>
+ 
+ #include "platform/bionic/page.h"
++#include "platform/bionic/vma_name.h"
+ 
+ extern "C" void __libc_stdio_cleanup();
+ extern "C" void __unregister_atfork(void* dso);
+@@ -202,7 +203,7 @@ bool AtexitArray::expand_capacity() {
+                           new_capacity_bytes);
+   } else {
+     result = true;
+-    prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, new_pages, new_capacity_bytes, "atexit handlers");
++    __bionic_set_vma_name(new_pages, new_capacity_bytes, "atexit handlers");
+     array_ = static_cast<AtexitEntry*>(new_pages);
+     capacity_ = new_capacity;
+   }
+diff --git i/libc/bionic/bionic_allocator.cpp w/libc/bionic/bionic_allocator.cpp
+index c0c5d13..c86d666 100644
+--- i/libc/bionic/bionic_allocator.cpp
++++ w/libc/bionic/bionic_allocator.cpp
+@@ -42,6 +42,7 @@
+ #include <async_safe/CHECK.h>
+ 
+ #include "platform/bionic/page.h"
++#include "platform/bionic/vma_name.h"
+ 
+ //
+ // BionicAllocator is a general purpose allocator designed to provide the same
+@@ -195,7 +196,7 @@ void BionicSmallObjectAllocator::alloc_page() {
+     async_safe_fatal("mmap failed: %m");
+   }
+ 
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, map_ptr, page_size(), "bionic_alloc_small_objects");
++  __bionic_set_vma_name(map_ptr, page_size(), "bionic_alloc_small_objects");
+ 
+   small_object_page_info* const page =
+       reinterpret_cast<small_object_page_info*>(map_ptr);
+@@ -276,7 +277,7 @@ void* BionicAllocator::alloc_mmap(size_t align, size_t size) {
+     async_safe_fatal("mmap failed: %m");
+   }
+ 
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, map_ptr, allocated_size, "bionic_alloc_lob");
++  __bionic_set_vma_name(map_ptr, allocated_size, "bionic_alloc_lob");
+ 
+   void* result = static_cast<char*>(map_ptr) + header_size;
+   page_info* info = get_page_info_unchecked(result);
+diff --git i/libc/bionic/pthread_create.cpp w/libc/bionic/pthread_create.cpp
+index 60b5b07..acd3cc5 100644
+--- i/libc/bionic/pthread_create.cpp
++++ w/libc/bionic/pthread_create.cpp
+@@ -43,6 +43,7 @@
+ #include "platform/bionic/macros.h"
+ #include "platform/bionic/mte.h"
+ #include "platform/bionic/page.h"
++#include "platform/bionic/vma_name.h"
+ #include "private/ErrnoRestorer.h"
+ #include "private/ScopedRWLock.h"
+ #include "private/bionic_arc4random.h"
+@@ -124,7 +125,7 @@ static void __init_alternate_signal_stack(pthread_internal_t* thread) {
+ 
+   // We can only use const static allocated string for mapped region name, as Android kernel
+   // uses the string pointer directly when dumping /proc/pid/maps.
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, ss.ss_sp, ss.ss_size, "thread signal stack");
++  __bionic_set_vma_name(ss.ss_sp, ss.ss_size, "thread signal stack");
+ }
+ 
+ static void __init_shadow_call_stack(pthread_internal_t* thread __unused) {
+@@ -370,8 +371,7 @@ void __set_stack_and_tls_vma_name(bool is_main_thread) {
+     async_safe_format_buffer(name_buffer, arraysize(name_buffer), "stack_and_tls:%d", thread->tid);
+     name = name_buffer;
+   }
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, thread->mmap_base_unguarded, thread->mmap_size_unguarded,
+-        name);
++  __bionic_set_vma_name(thread->mmap_base_unguarded, thread->mmap_size_unguarded, name);
+ }
+ 
+ extern "C" int __rt_sigprocmask(int, const sigset64_t*, sigset64_t*, size_t);
+diff --git i/libc/platform/bionic/mte.h w/libc/platform/bionic/mte.h
+index 1d521bf..19edf98 100644
+--- i/libc/platform/bionic/mte.h
++++ w/libc/platform/bionic/mte.h
+@@ -34,6 +34,7 @@
+ #include <sys/prctl.h>
+ 
+ #include "page.h"
++#include "vma_name.h"
+ 
+ // Note: Most PR_MTE_* constants come from the upstream kernel. This tag mask
+ // allows for the hardware to provision any nonzero tag. Zero tags are reserved
+@@ -168,7 +169,7 @@ inline void* stack_mte_ringbuffer_allocate(size_t n, const char* name) {
+   }
+ 
+   if (name) {
+-    prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, reinterpret_cast<void*>(aligned_allocation), size, name);
++    __bionic_set_vma_name(reinterpret_cast<void*>(aligned_allocation), size, name);
+   }
+ 
+   // We store the size in the top byte of the pointer (which is ignored)
+diff --git i/libc/platform/bionic/vma_name.h w/libc/platform/bionic/vma_name.h
+new file mode 100644
+index 0000000..8df97d7
+--- /dev/null
++++ w/libc/platform/bionic/vma_name.h
+@@ -0,0 +1,46 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++#pragma once
++
++#include <errno.h>
++#include <stddef.h>
++#include <sys/prctl.h>
++
++/*
++ * joe Linux: names an anonymous mapping, for /proc/PID/maps and crash reports.
++ *
++ * Naming needs a kernel built with CONFIG_ANON_VMA_NAME. Android's kernels are;
++ * many Linux kernels are not, and there every name is refused with EINVAL. A
++ * name is only an aid to debugging, and the functions that map memory (malloc,
++ * atexit, dlopen, thread creation, ...) must not leave that error in errno when
++ * they succeed: programs written for glibc read errno after calls that set it
++ * only on failure (the kernel's kallsyms does after getline at the end of a
++ * file). So errno is left as it was, and the error is returned: 0 when the
++ * mapping is named.
++ */
++static inline int __bionic_set_vma_name(const void* addr, size_t size, const char* name) {
++  int saved_errno = errno;
++  int error = prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, addr, size, name) == 0 ? 0 : errno;
++  errno = saved_errno;
++  return error;
++}
+diff --git i/libc/system_properties/contexts_serialized.cpp w/libc/system_properties/contexts_serialized.cpp
+index 73c9136..ab44f07 100644
+--- i/libc/system_properties/contexts_serialized.cpp
++++ w/libc/system_properties/contexts_serialized.cpp
+@@ -42,6 +42,8 @@
+ 
+ #include "system_properties/system_properties.h"
+ 
++#include "platform/bionic/vma_name.h"
++
+ bool ContextsSerialized::InitializeContextNodes() {
+   auto num_context_nodes = property_info_area_file_->num_contexts();
+   auto context_nodes_mmap_size = sizeof(ContextNode) * num_context_nodes;
+@@ -52,8 +54,7 @@ bool ContextsSerialized::InitializeContextNodes() {
+     return false;
+   }
+ 
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, map_result, context_nodes_mmap_size,
+-        "System property context nodes");
++  __bionic_set_vma_name(map_result, context_nodes_mmap_size, "System property context nodes");
+ 
+   context_nodes_ = reinterpret_cast<ContextNode*>(map_result);
+   num_context_nodes_ = num_context_nodes;
+diff --git i/libc/upstream-openbsd/android/include/arc4random.h w/libc/upstream-openbsd/android/include/arc4random.h
+index 1940398..4783be3 100644
+--- i/libc/upstream-openbsd/android/include/arc4random.h
++++ w/libc/upstream-openbsd/android/include/arc4random.h
+@@ -24,6 +24,8 @@
+ 
+ #include <async_safe/log.h>
+ 
++#include "platform/bionic/vma_name.h"
++
+ static pthread_mutex_t g_arc4random_mutex = PTHREAD_MUTEX_INITIALIZER;
+ 
+ void arc4random_mutex_lock() {
+@@ -65,7 +67,7 @@ static inline int _rs_allocate(struct _rs** rsp, struct _rsx** rsxp) {
+   }
+ 
+   // Give the allocation a name to make tombstones more intelligible.
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, p, size, "arc4random data");
++  __bionic_set_vma_name(p, size, "arc4random data");
+ 
+   *rsp = &p->rs;
+   *rsxp = &p->rsx;
+diff --git i/linker/linker_block_allocator.cpp w/linker/linker_block_allocator.cpp
+index d7f517e..f506d6d 100644
+--- i/linker/linker_block_allocator.cpp
++++ w/linker/linker_block_allocator.cpp
+@@ -37,6 +37,8 @@
+ 
+ #include "linker_debug.h"
+ 
++#include "platform/bionic/vma_name.h"
++
+ static constexpr size_t kMaxPageSize = 65536;
+ static constexpr size_t kAllocateSize = kMaxPageSize * 6;
+ static_assert(kAllocateSize % kMaxPageSize == 0, "Invalid kAllocateSize.");
+@@ -122,7 +124,7 @@ void LinkerBlockAllocator::create_new_page() {
+       mmap(nullptr, kAllocateSize, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0));
+   CHECK(page != MAP_FAILED);
+ 
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, page, kAllocateSize, "linker_alloc");
++  __bionic_set_vma_name(page, kAllocateSize, "linker_alloc");
+ 
+   FreeBlockInfo* first_block = reinterpret_cast<FreeBlockInfo*>(page->bytes);
+   first_block->next_block = free_block_list_;
+diff --git i/linker/linker_cfi.cpp w/linker/linker_cfi.cpp
+index 92ec53e..487f708 100644
+--- i/linker/linker_cfi.cpp
++++ w/linker/linker_cfi.cpp
+@@ -31,6 +31,7 @@
+ #include "linker_debug.h"
+ #include "linker_globals.h"
+ #include "platform/bionic/page.h"
++#include "platform/bionic/vma_name.h"
+ 
+ #include <sys/mman.h>
+ #include <sys/prctl.h>
+@@ -79,7 +80,7 @@ class ShadowWrite {
+ };
+ 
+ void CFIShadowWriter::FixupVmaName() {
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, *shadow_start, kShadowSize, "cfi shadow");
++  __bionic_set_vma_name(reinterpret_cast<void*>(*shadow_start), kShadowSize, "cfi shadow");
+ }
+ 
+ void CFIShadowWriter::AddConstant(uintptr_t begin, uintptr_t end, uint16_t v) {
+diff --git i/linker/linker_main.cpp w/linker/linker_main.cpp
+index 5cf103a..56d5e53 100644
+--- i/linker/linker_main.cpp
++++ w/linker/linker_main.cpp
+@@ -47,6 +47,7 @@
+ #include "linker_utils.h"
+ 
+ #include "platform/bionic/macros.h"
++#include "platform/bionic/vma_name.h"
+ #include "private/KernelArgumentBlock.h"
+ #include "private/bionic_call_ifunc_resolver.h"
+ #include "private/bionic_globals.h"
+@@ -596,9 +597,8 @@ static void set_bss_vma_name(soinfo* si) {
+     ElfW(Addr) seg_file_end = page_end(seg_start + phdr->p_filesz);
+ 
+     if (seg_page_end > seg_file_end) {
+-      prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME,
+-            reinterpret_cast<void*>(seg_file_end), seg_page_end - seg_file_end,
+-            ".bss");
++      __bionic_set_vma_name(reinterpret_cast<void*>(seg_file_end), seg_page_end - seg_file_end,
++                            ".bss");
+     }
+   }
+ }
+diff --git i/linker/linker_phdr.cpp w/linker/linker_phdr.cpp
+index cb3203d..8a453c6 100644
+--- i/linker/linker_phdr.cpp
++++ w/linker/linker_phdr.cpp
+@@ -46,6 +46,8 @@
+ #include "linker_soinfo.h"
+ #include "linker_utils.h"
+ 
++#include "platform/bionic/vma_name.h"
++
+ #include "private/CFIShadow.h"  // For kLibraryAlignment
+ #include "private/bionic_arc4random.h"
+ #include "private/bionic_asm_note.h"
+@@ -978,7 +980,7 @@ bool ElfReader::MapBssSection(const ElfW(Phdr)* phdr, ElfW(Addr) seg_page_end,
+   }
+ 
+   // Set the VMA name using prctl
+-  prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, zeromap, zeromap_size, ".bss");
++  __bionic_set_vma_name(zeromap, zeromap_size, ".bss");
+ 
+   return true;
+ }
+@@ -1257,9 +1259,10 @@ void name_memtag_globals_segments(const ElfW(Phdr) * phdr_table, size_t phdr_cou
+                              page_start(phdr->p_vaddr));
+     format_left_truncated_vma_anon_name(vma_name.data(), vma_name.size(), "mt:", soname,
+                                         suffix_buffer);
+-    if (prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, reinterpret_cast<void*>(seg_page_start),
+-              seg_page_aligned_size, vma_name.data()) != 0) {
+-      DL_WARN("Failed to rename memtag global segment: %m");
++    if (int error = __bionic_set_vma_name(reinterpret_cast<void*>(seg_page_start),
++                                          seg_page_aligned_size, vma_name.data());
++        error != 0) {
++      DL_WARN("Failed to rename memtag global segment: %s", strerror(error));
+     }
+   }
+ }
+diff --git i/linker/linker_phdr_16kib_compat.cpp w/linker/linker_phdr_16kib_compat.cpp
+index ea1d85b..6901450 100644
+--- i/linker/linker_phdr_16kib_compat.cpp
++++ w/linker/linker_phdr_16kib_compat.cpp
+@@ -29,6 +29,7 @@
+ #include "linker_phdr.h"
+ 
+ #include <stdlib.h>
++#include <string.h>
+ #include <sys/mman.h>
+ #include <sys/prctl.h>
+ #include <unistd.h>
+@@ -39,6 +40,7 @@
+ 
+ #include "platform/bionic/macros.h"
+ #include "platform/bionic/page.h"
++#include "platform/bionic/vma_name.h"
+ 
+ #include <android-base/stringprintf.h>
+ 
+@@ -371,8 +373,8 @@ void ElfReader::LabelCompatVma() {
+   char vma_name_buffer[kVmaNameLimit] = {};
+   format_left_truncated_vma_anon_name(vma_name_buffer, sizeof(vma_name_buffer),
+                                       "16k:", name_.c_str(), "");
+-  if (prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, load_start_, load_size_, vma_name_buffer) != 0) {
+-    DL_WARN("\"%s\": Failed to rename 16KiB compat segment: %m", name_.c_str());
++  if (int error = __bionic_set_vma_name(load_start_, load_size_, vma_name_buffer); error != 0) {
++    DL_WARN("\"%s\": Failed to rename 16KiB compat segment: %s", name_.c_str(), strerror(error));
+   }
+ }
+ 

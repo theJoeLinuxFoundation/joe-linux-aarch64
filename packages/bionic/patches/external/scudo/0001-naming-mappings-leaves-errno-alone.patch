@@ -1,0 +1,42 @@
+joe Linux: naming a mapping leaves errno as it was. Naming needs a kernel built with
+CONFIG_ANON_VMA_NAME, as Android's kernels are and many Linux kernels are not; there it is refused
+with EINVAL, and malloc left that in errno when it succeeded (see bionic's patch 0030).
+
+diff --git i/standalone/linux.cpp w/standalone/linux.cpp
+index 57171ed..5ce7821 100644
+--- i/standalone/linux.cpp
++++ w/standalone/linux.cpp
+@@ -74,8 +74,13 @@ void *map(void *Addr, uptr Size, UNUSED const char *Name, uptr Flags,
+     return nullptr;
+   }
+ #if SCUDO_ANDROID
+-  if (Name)
++  if (Name) {
++    // joe Linux: naming needs a kernel built with CONFIG_ANON_VMA_NAME, and
++    // where it is refused, a mapping that succeeds leaves errno as it was.
++    int SavedErrno = errno;
+     prctl(ANDROID_PR_SET_VMA, ANDROID_PR_SET_VMA_ANON_NAME, P, Size, Name);
++    errno = SavedErrno;
++  }
+ #endif
+   return P;
+ }
+diff --git i/standalone/mem_map_linux.cpp w/standalone/mem_map_linux.cpp
+index b34bef5..5b6abc5 100644
+--- i/standalone/mem_map_linux.cpp
++++ w/standalone/mem_map_linux.cpp
+@@ -69,8 +69,13 @@ static void *mmapWrapper(uptr Addr, uptr Size, const char *Name, uptr Flags) {
+     return nullptr;
+   }
+ #if SCUDO_ANDROID
+-  if (Name)
++  if (Name) {
++    // joe Linux: naming needs a kernel built with CONFIG_ANON_VMA_NAME, and
++    // where it is refused, a mapping that succeeds leaves errno as it was.
++    int SavedErrno = errno;
+     prctl(ANDROID_PR_SET_VMA, ANDROID_PR_SET_VMA_ANON_NAME, P, Size, Name);
++    errno = SavedErrno;
++  }
+ #else
+   (void)Name;
+ #endif

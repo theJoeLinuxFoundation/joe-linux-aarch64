@@ -1,7 +1,7 @@
 .{
     .name = "bionic",
     .version = "17.0.0_r1",
-    .release = 20,
+    .release = 21,
     .description = "bionic, Android's C library, as joe Linux's: libc, libm, libdl and the dynamic linker",
     .license = "BSD-2-Clause AND BSD-3-Clause AND ISC AND MIT AND Apache-2.0",
     // AOSP's bionic and the libraries its build uses, as `git archive` tars

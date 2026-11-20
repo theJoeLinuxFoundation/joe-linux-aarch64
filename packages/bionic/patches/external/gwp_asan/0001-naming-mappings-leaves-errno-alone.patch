@@ -1,0 +1,21 @@
+joe Linux: naming a mapping leaves errno as it was. Naming needs a kernel built with
+CONFIG_ANON_VMA_NAME, as Android's kernels are and many Linux kernels are not; there it is refused
+with EINVAL, and sampled allocations left that in errno when they succeeded (see bionic's patch
+0030).
+
+diff --git i/gwp_asan/platform_specific/guarded_pool_allocator_posix.cpp w/gwp_asan/platform_specific/guarded_pool_allocator_posix.cpp
+index 7b2e199..94be068 100644
+--- i/gwp_asan/platform_specific/guarded_pool_allocator_posix.cpp
++++ w/gwp_asan/platform_specific/guarded_pool_allocator_posix.cpp
+@@ -29,7 +29,11 @@
+ namespace {
+ void MaybeSetMappingName(void *Mapping, size_t Size, const char *Name) {
+ #ifdef ANDROID
++  // joe Linux: naming needs a kernel built with CONFIG_ANON_VMA_NAME, and
++  // where it is refused, errno is left as it was.
++  int SavedErrno = errno;
+   prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, Mapping, Size, Name);
++  errno = SavedErrno;
+ #endif // ANDROID
+   // Anonymous mapping names are only supported on Android.
+   return;
