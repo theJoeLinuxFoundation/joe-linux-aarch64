@@ -1,0 +1,107 @@
+joe Linux: index and rindex, the old BSD names of strchr and strrchr, which glibc and musl keep,
+and <string.h> including <strings.h> by default, as glibc's does; iproute2's tc calls index and
+rindex with only <string.h>. On 32-bit Arm and x86 bionic already had index, for old NDK apps.
+
+diff --git i/libc/Android.bp w/libc/Android.bp
+--- i/libc/Android.bp
++++ w/libc/Android.bp
+@@ -1102,6 +1102,7 @@
+         "bionic/joe_posix_ipc.cpp",
+         "bionic/joe_usershell.cpp",
+         "bionic/joe_gnu_functions.cpp",
++        "bionic/joe_bsd_strings.cpp",
+         "bionic/vdso.cpp",
+         "bionic/wait.cpp",
+         "bionic/wchar.cpp",
+diff --git i/libc/bionic/joe_bsd_strings.cpp w/libc/bionic/joe_bsd_strings.cpp
+new file mode 100644
+--- /dev/null
++++ w/libc/bionic/joe_bsd_strings.cpp
+@@ -0,0 +1,40 @@
++/*
++ * Copyright (C) 2026 joe Linux
++ *
++ * Permission is hereby granted, free of charge, to any person obtaining a
++ * copy of this software and associated documentation files (the "Software"),
++ * to deal in the Software without restriction, including without limitation
++ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
++ * and/or sell copies of the Software, and to permit persons to whom the
++ * Software is furnished to do so, subject to the following conditions:
++ *
++ * The above copyright notice and this permission notice shall be included in
++ * all copies or substantial portions of the Software.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
++ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
++ * DEALINGS IN THE SOFTWARE.
++ */
++
++
++// joe Linux: index(3) and rindex(3), the old BSD names of strchr() and
++// strrchr(), which glibc and musl keep and programs written for Linux still
++// call (iproute2's tc). On 32-bit Arm and x86, bionic already exports index()
++// for old NDK apps (ndk_cruft.cpp).
++
++#include <string.h>
++#include <strings.h>
++
++#if defined(__LP64__)
++char* index(const char* s, int ch) {
++  return const_cast<char*>(strchr(s, ch));
++}
++#endif
++
++char* rindex(const char* s, int ch) {
++  return const_cast<char*>(strrchr(s, ch));
++}
+diff --git i/libc/include/string.h w/libc/include/string.h
+--- i/libc/include/string.h
++++ w/libc/include/string.h
+@@ -37,9 +37,9 @@
+ 
+ __BEGIN_DECLS
+ 
+-#if defined(__USE_BSD) || defined(__USE_GNU)
++/* joe Linux: by default, as glibc's <string.h> includes <strings.h> (index,
++ * strcasecmp, ...) unless a strict standard is asked for. */
+ #include <strings.h>
+-#endif
+ 
+ void* _Nullable memccpy(void* _Nonnull __dst, const void* _Nonnull __src, int __stop_char, size_t __n);
+ void* _Nullable memchr(const void* _Nonnull __s, int __ch, size_t __n) __attribute_pure__;
+diff --git i/libc/include/strings.h w/libc/include/strings.h
+--- i/libc/include/strings.h
++++ w/libc/include/strings.h
+@@ -105,6 +105,16 @@
+   return __builtin_ffsll(__n);
+ }
+ 
++/**
++ * index(3) is strchr() under its old BSD name (joe Linux: declared by
++ * default, as glibc's <strings.h> and <string.h> do, and as bionic declares
++ * its other BSD string functions).
++ */
++char* _Nullable index(const char* _Nonnull __s, int __ch) __attribute_pure__;
++
++/** rindex(3) is strrchr() under its old BSD name (joe Linux, as glibc). */
++char* _Nullable rindex(const char* _Nonnull __s, int __ch) __attribute_pure__;
++
+ #if defined(__BIONIC_INCLUDE_FORTIFY_HEADERS)
+ #include <bits/fortify/strings.h>
+ #endif
+diff --git i/libc/libc.map.txt w/libc/libc.map.txt
+--- i/libc/libc.map.txt
++++ w/libc/libc.map.txt
+@@ -1884,6 +1884,8 @@
+     secure_getenv;
+     program_invocation_name; # var
+     program_invocation_short_name; # var
++    index; # arm64 riscv64 x86_64
++    rindex;
+ } LIBC_37;
+ 
+ LIBC_DEPRECATED {
