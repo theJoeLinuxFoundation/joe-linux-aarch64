@@ -1,0 +1,24 @@
+# Install the site rules in /etc/nftables/rules/main.nft before enabling.
+[service]
+name = "nftables"
+exec = ["/usr/sbin/nft", "flush ruleset; include \"/etc/nftables/rules/main.nft\""]
+type = "oneshot"
+enabled = false
+remain-after-exit = true
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["fstab-mount"]
+before = ["dhcpcd"]
+
+[namespace]
+enable = ["mnt"]
+protect-system = "full"
+
+[shutdown]
+stop-exec = ["/usr/sbin/nft", "flush", "ruleset"]
+
+[readiness]
+type = "none"
