@@ -9,5 +9,5 @@
     },
     // xz compresses old daily data files (sa2).
     .depends = .{ "bionic", "libintl", "xz", "bash", "coreutils" },
-    .build_depends = .{ "gettext", "pkgconf" },
+    .build_depends = .{ "gettext", "icu", "pkgconf" },
 }

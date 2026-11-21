@@ -1,3 +1,15 @@
+prepare() {
+    # Bionic's msgfmt cannot convert Latin-1. Keep those translations by
+    # converting their text and charset declaration before building the catalogs.
+    local po
+    for po in nls/*.po; do
+        if grep -q 'charset=ISO-8859-1' "$po"; then
+            uconv -f ISO-8859-1 -t UTF-8 "$po" | sed 's/charset=ISO-8859-1/charset=UTF-8/' > "$po.utf8"
+            mv "$po.utf8" "$po"
+        fi
+    done
+}
+
 build() {
     # Keep the book's paths. dynamod runs the collector, so upstream's
     # installer must neither enable systemd units nor edit the host crontab.
