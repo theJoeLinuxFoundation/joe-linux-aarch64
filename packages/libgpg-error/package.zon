@@ -1,0 +1,12 @@
+.{
+    .name = "libgpg-error",
+    .version = "1.61",
+    .release = 1,
+    .description = "Error codes and runtime support shared by the GnuPG libraries",
+    .license = "LGPL-2.1-or-later",
+    .sources = .{
+        .{ .url = "https://www.gnupg.org/ftp/gcrypt/libgpg-error/libgpg-error-1.61.tar.bz2", .sha256 = "7a85413f2bc354f4f8aa832b718af122e48965e9e0eb9012ee659c13c6385c93" },
+    },
+    .depends = .{ "bionic", "libintl" },
+    .build_depends = .{"gettext"},
+}
