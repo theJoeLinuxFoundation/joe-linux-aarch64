@@ -1,0 +1,12 @@
+.{
+    .name = "gnutls",
+    .version = "3.8.13",
+    .release = 1,
+    .description = "TLS, DTLS and X.509 library and tools",
+    .license = "LGPL-2.1-or-later AND GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://www.gnupg.org/ftp/gcrypt/gnutls/v3.8/gnutls-3.8.13.tar.xz", .sha256 = "ffed8ec1bf09c2426d4f14aae377de4753b53e537d685e604e99a8b16ca9c97e" },
+    },
+    .depends = .{ "bionic", "llvm-runtimes", "libintl", "gmp", "nettle", "libtasn1", "p11-kit", "libunistring", "libidn2", "zlib", "zstd", "make-ca" },
+    .build_depends = .{ "pkgconf", "gettext" },
+}
