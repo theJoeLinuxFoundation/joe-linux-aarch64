@@ -7,8 +7,11 @@ prepare() {
 
 build() {
     # --disable-gssapi: MIT Kerberos is not part of joe Linux.
-    ./configure --prefix=/usr \
+    # Bionic does not supply the RPC database functions. The bundled
+    # getrpcent.c uses K&R definitions, which are accepted through C17.
+    CFLAGS="${CFLAGS:--O2} -std=gnu17" ./configure --prefix=/usr \
         --sysconfdir=/etc \
+        --enable-rpcdb \
         --disable-static \
         --disable-authdes \
         --disable-gssapi
@@ -17,4 +20,5 @@ build() {
 
 package() {
     make DESTDIR="$DESTDIR" install
+    install -Dm644 /recipe/rpc "$DESTDIR/etc/rpc"
 }
