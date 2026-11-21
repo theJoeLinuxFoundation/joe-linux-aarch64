@@ -2,6 +2,9 @@
 # configured as nginx.org's own packages are (nginx -V of those packages,
 # and https://nginx.org/en/docs/configure.html).
 prepare() {
+    # The generated QUIC helper includes stdint.h before nginx requests
+    # the GNU cpu_set_t declaration. Load the nginx feature macros first.
+    sed -i '/^#include <stddef.h>/i#include <ngx_config.h>' src/event/quic/ngx_event_quic_bpf_code.c
     # Bionic's epoll masks contain casts, which #if cannot evaluate.
     # Set the kernel event mask in each branch; clang folds the constants.
     sed -i '/^#if (NGX_READ_EVENT != EPOLLIN|EPOLLRDHUP)/,/^#endif/ { /^#/d; }
