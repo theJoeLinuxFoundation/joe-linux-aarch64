@@ -1,0 +1,12 @@
+.{
+    .name = "wget",
+    .version = "1.25.0",
+    .release = 1,
+    .description = "Non-interactive downloader for HTTP, HTTPS and FTP",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/wget/wget-1.25.0.tar.gz", .sha256 = "766e48423e79359ea31e41db9e5c289675947a7fcf2efdcedb726ac9d0da3784" },
+    },
+    .depends = .{ "bionic", "openssl", "zlib", "libpsl", "libidn2", "libunistring", "pcre2", "util-linux", "make-ca", "libintl" },
+    .build_depends = .{ "pkgconf", "perl", "gettext" },
+}
