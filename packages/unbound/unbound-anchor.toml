@@ -1,0 +1,18 @@
+[service]
+name = "unbound-anchor"
+exec = ["/bin/sh", "-c", "/usr/sbin/unbound-anchor -a /var/lib/unbound/root.key; rc=$?; [ \"$rc\" -le 1 ] && [ -s /var/lib/unbound/root.key ]"]
+type = "oneshot"
+enabled = false
+
+[service.user]
+user = "unbound"
+group = "unbound"
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"

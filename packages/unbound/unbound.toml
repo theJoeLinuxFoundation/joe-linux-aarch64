@@ -1,0 +1,15 @@
+[service]
+name = "unbound"
+exec = ["/usr/sbin/unbound", "-d", "-p"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "permanent"
+
+[dependencies]
+requires = ["unbound-anchor"]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"

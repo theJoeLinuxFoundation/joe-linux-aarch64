@@ -1,0 +1,12 @@
+.{
+    .name = "unbound",
+    .version = "1.26.2",
+    .release = 1,
+    .description = "Validating, recursive and caching DNS resolver, with libunbound",
+    .license = "BSD-3-Clause",
+    .sources = .{
+        .{ .url = "https://nlnetlabs.nl/downloads/unbound/unbound-1.26.2.tar.gz", .sha256 = "d8ee7aa6bbb3ff1be7d9e57637d0d0ec2f18273a8efff1a0afe2c665858b96f7" },
+    },
+    .depends = .{ "bionic", "openssl", "libevent", "expat", "nghttp2" },
+    .build_depends = .{"pkgconf"},
+}
