@@ -1,0 +1,14 @@
+.{
+    .name = "sshfs",
+    .version = "3.7.7",
+    .release = 1,
+    .description = "FUSE file system mounting a remote directory over SSH (SFTP)",
+    .license = "GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://github.com/libfuse/sshfs/releases/download/sshfs-3.7.7/sshfs-3.7.7.tar.xz", .sha256 = "893013ce6cdbf6f9fa790c9a4ca2b07eea95139f965f5c14f06b458cbe17f00d" },
+    },
+    // sshfs runs ssh for its connection; an unprivileged user mounts
+    // through fuse3's fusermount3.
+    .depends = .{ "bionic", "fuse3", "glib", "openssh" },
+    .build_depends = .{ "meson", "ninja", "pkgconf" },
+}
