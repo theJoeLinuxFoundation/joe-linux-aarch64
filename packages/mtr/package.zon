@@ -1,0 +1,18 @@
+.{
+    .name = "mtr",
+    .version = "0.96",
+    .release = 1,
+    .description = "Network diagnostic tool combining traceroute and ping",
+    .license = "GPL-2.0-only",
+    .sources = .{
+        .{ .url = "https://www.bitwizard.nl/mtr/files/mtr-0.96.tar.gz", .sha256 = "ffd19a9f8d5f616c1ea2f0da9fbf9d1239bcecdf5a68912e831966d20929037a" },
+    },
+    .depends = .{ "bionic", "ncurses", "jansson", "libcap" },
+    .build_depends = .{"pkgconf"},
+    // Set-uid root. Run by an ordinary user, a program holds only what its
+    // seal declares (packages/linux/joe-lsm), so these declare all;
+    // narrower lists are rule 3's work.
+    .operations = .{
+        .{ .programs = .{ "usr/sbin/mtr-packet" }, .allow = .{"all"} },
+    },
+}
