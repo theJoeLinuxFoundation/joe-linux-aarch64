@@ -1,0 +1,14 @@
+.{
+    .name = "stunnel",
+    .version = "5.82",
+    .release = 1,
+    .description = "TLS proxy adding encryption to programs that do not speak TLS themselves",
+    .license = "GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://www.stunnel.org/downloads/archive/5.x/stunnel-5.82.tar.gz", .sha256 = "8e7438ccd6b3a2ab05182d0846e112a56a7f557ecdee40de07bf67820008bef7" },
+    },
+    // stunnel3, the wrapper accepting
+    // stunnel 3 options, is a Perl script.
+    .depends = .{ "bionic", "openssl", "perl" },
+    .build_depends = .{"pkgconf"},
+}

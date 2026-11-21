@@ -1,0 +1,14 @@
+[service]
+name = "stunnel"
+exec = ["/usr/bin/stunnel", "/etc/stunnel/stunnel.conf"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"
