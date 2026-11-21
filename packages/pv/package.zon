@@ -1,0 +1,14 @@
+.{
+    .name = "pv",
+    .version = "1.12.7",
+    .release = 1,
+    .description = "Pipe viewer: shows the progress of data through a pipeline",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        // Checked against Andrew Wood's signature (pv-1.12.7.tar.gz.txt).
+        .{ .url = "https://www.ivarch.com/programs/sources/pv-1.12.7.tar.gz", .sha256 = "5326ed7ee95ef18039390c0b17891ac28985ac7c7a4235070fab767c1fe37bd8" },
+    },
+    // ncurses for the terminal's capabilities (tigetnum).
+    .depends = .{ "bionic", "ncurses", "libintl" },
+    .build_depends = .{"gettext"},
+}
