@@ -1,0 +1,16 @@
+.{
+    .name = "fuse3",
+    .version = "3.18.3",
+    .release = 1,
+    .description = "Filesystem in Userspace: library and helpers for user-space file systems",
+    .license = "LGPL-2.1-only AND GPL-2.0-only",
+    .sources = .{
+        .{ .url = "https://github.com/libfuse/libfuse/releases/download/fuse-3.18.3/fuse-3.18.3.tar.gz", .sha256 = "bcd19582c5e30f7fe45dd86a5540e998590aa01903afc7ebcbeea6c8ac5421ee" },
+    },
+    .depends = .{"bionic"},
+    .build_depends = .{ "meson", "ninja", "pkgconf" },
+    .operations = .{
+        // Mounts and unmounts FUSE file systems for their user.
+        .{ .programs = .{"usr/bin/fusermount3"}, .allow = .{ "mount", "cap:sys_admin", "cap:setuid", "cap:dac_override", "cap:dac_read_search" } },
+    },
+}

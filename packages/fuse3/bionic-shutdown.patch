@@ -1,0 +1,225 @@
+--- a/lib/fuse_loop_mt.c
++++ b/lib/fuse_loop_mt.c
+@@ -42,10 +42,61 @@
+ /* an arbitrary large value that cannot be valid */
+ #define FUSE_LOOP_MT_MAX_THREADS      (100U * 1000)
+ 
++#ifdef __ANDROID__
++/* bionic has no pthread_cancel. Interrupt a blocked device read so the
++ * worker can observe session exit and unwind on its own stack. Share an
++ * unused realtime signal among active loops and restore it at last exit. */
++static pthread_mutex_t wake_lock = PTHREAD_MUTEX_INITIALIZER;
++static unsigned wake_users;
++static int wake_signal;
++static struct sigaction saved_action;
++
++static void wake_reader(int sig)
++{
++	(void)sig;
++}
++
++static int acquire_wake_signal(void)
++{
++	int sig;
++	struct sigaction action = { .sa_handler = wake_reader };
++	sigemptyset(&action.sa_mask);
++	pthread_mutex_lock(&wake_lock);
++	if (!wake_users) {
++		for (sig = SIGRTMAX; sig >= SIGRTMIN; --sig) {
++			if (sigaction(sig, NULL, &saved_action) == 0 &&
++			    saved_action.sa_handler == SIG_DFL &&
++			    sigaction(sig, &action, NULL) == 0) {
++				wake_signal = sig;
++				break;
++			}
++		}
++	}
++	if (wake_signal)
++		wake_users++;
++	sig = wake_signal;
++	pthread_mutex_unlock(&wake_lock);
++	return sig;
++}
++
++static void release_wake_signal(void)
++{
++	pthread_mutex_lock(&wake_lock);
++	if (--wake_users == 0) {
++		sigaction(wake_signal, &saved_action, NULL);
++		wake_signal = 0;
++	}
++	pthread_mutex_unlock(&wake_lock);
++}
++#endif
++
+ struct fuse_worker {
+ 	struct fuse_worker *prev;
+ 	struct fuse_worker *next;
+ 	pthread_t thread_id;
++#ifdef __ANDROID__
++	bool receiving; /* protected by se->mt_lock */
++#endif
+ 
+ 	// We need to include fuse_buf so that we can properly free
+ 	// it when a thread is terminated by pthread_cancel().
+@@ -133,14 +184,36 @@
+ 	struct fuse_session *se = mt->se;
+ 
+ 	fuse_set_thread_name("fuse_worker");
++#ifdef __ANDROID__
++	sigset_t signals;
++	sigemptyset(&signals);
++	sigaddset(&signals, wake_signal);
++	pthread_sigmask(SIG_UNBLOCK, &signals, NULL);
++#endif
+ 
+ 	while (!fuse_session_exited(se)) {
+ 		int isforget = 0;
+ 		int res;
+ 
++#ifdef __ANDROID__
++		pthread_mutex_lock(&se->mt_lock);
++		if (fuse_session_exited(se)) {
++			pthread_mutex_unlock(&se->mt_lock);
++			break;
++		}
++		w->receiving = true;
++		pthread_mutex_unlock(&se->mt_lock);
++#else
+ 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
++#endif
+ 		res = fuse_session_receive_buf_internal(se, &w->fbuf, w->ch);
++#ifdef __ANDROID__
++		pthread_mutex_lock(&se->mt_lock);
++		w->receiving = false;
++		pthread_mutex_unlock(&se->mt_lock);
++#else
+ 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
++#endif
+ 		if (res == -EINTR)
+ 			continue;
+ 		if (res <= 0) {
+@@ -387,6 +460,13 @@
+ 	}
+ 
+ 
++#ifdef __ANDROID__
++	if (!acquire_wake_signal()) {
++		if (created_config)
++			fuse_loop_cfg_destroy(config);
++		return -EAGAIN;
++	}
++#endif
+ 	memset(&mt, 0, sizeof(struct fuse_mt));
+ 	mt.se = se;
+ 	mt.clone_fd = config->clone_fd;
+@@ -409,8 +489,28 @@
+ 				 "fuse: session exited, terminating workers\n");
+ 
+ 		pthread_mutex_lock(&se->mt_lock);
++#ifdef __ANDROID__
++		/* A signal may arrive just before read/splice enters the kernel.
++		 * Retry until readers acknowledge exit. Never interrupt a
++		 * filesystem callback or free a worker before joining it. */
++		for (;;) {
++			bool pending = false;
++			for (w = mt.main.next; w != &mt.main; w = w->next) {
++				if (w->receiving) {
++					pthread_kill(w->thread_id, wake_signal);
++					pending = true;
++				}
++			}
++			if (!pending)
++				break;
++			pthread_mutex_unlock(&se->mt_lock);
++			usleep(10000);
++			pthread_mutex_lock(&se->mt_lock);
++		}
++#else
+ 		for (w = mt.main.next; w != &mt.main; w = w->next)
+ 			pthread_cancel(w->thread_id);
++#endif
+ 		pthread_mutex_unlock(&se->mt_lock);
+ 
+ 		while (mt.main.next != &mt.main)
+@@ -422,6 +522,9 @@
+ 			fuse_uring_stop(se);
+ 	}
+ 
++#ifdef __ANDROID__
++	release_wake_signal();
++#endif
+ 	if(se->error != 0)
+ 		err = se->error;
+ 
+--- a/lib/fuse.c
++++ b/lib/fuse.c
+@@ -123,6 +123,9 @@
+ 	struct list_head partial_slabs;
+ 	struct list_head full_slabs;
+ 	pthread_t prune_thread;
++#ifdef __ANDROID__
++	sem_t prune_stop;
++#endif
+ };
+ 
+ struct lock {
+@@ -4965,15 +4968,39 @@
+ 
+ 	while(1) {
+ 		sleep_time = fuse_clean_cache(f);
++#ifdef __ANDROID__
++		/* Wake immediately when cleanup is stopped, even if the session
++		 * stays mounted. bionic cannot cancel a thread sleeping here. */
++		struct timespec until;
++		clock_gettime(CLOCK_REALTIME, &until);
++		until.tv_sec += sleep_time;
++		int rc;
++		do {
++			rc = sem_timedwait(&f->prune_stop, &until);
++		} while (rc < 0 && errno == EINTR);
++		if (rc == 0 || errno != ETIMEDOUT)
++			break;
++#else
+ 		sleep(sleep_time);
++#endif
+ 	}
+ 	return NULL;
+ }
+ 
+ int fuse_start_cleanup_thread(struct fuse *f)
+ {
+-	if (lru_enabled(f))
++	if (lru_enabled(f)) {
++#ifdef __ANDROID__
++		if (sem_init(&f->prune_stop, 0, 0) != 0)
++			return -errno;
++		int rc = fuse_start_thread(&f->prune_thread, fuse_prune_nodes, f);
++		if (rc != 0)
++			sem_destroy(&f->prune_stop);
++		return rc;
++#else
+ 		return fuse_start_thread(&f->prune_thread, fuse_prune_nodes, f);
++#endif
++	}
+ 
+ 	return 0;
+ }
+@@ -4981,10 +5008,17 @@
+ void fuse_stop_cleanup_thread(struct fuse *f)
+ {
+ 	if (lru_enabled(f)) {
++#ifdef __ANDROID__
++		sem_post(&f->prune_stop);
++#else
+ 		pthread_mutex_lock(&f->lock);
+ 		pthread_cancel(f->prune_thread);
+ 		pthread_mutex_unlock(&f->lock);
++#endif
+ 		pthread_join(f->prune_thread, NULL);
++#ifdef __ANDROID__
++		sem_destroy(&f->prune_stop);
++#endif
+ 	}
+ }
+ 
