@@ -1,3 +1,8 @@
+prepare() {
+    # config.h requests the GNU declaration of unshare before sched.h.
+    sed -i '/^#include "config.h"$/d; 1i#include "config.h"' support/misc/workqueue.c
+}
+
 build() {
     # The book builds without NFSv4 and GSS. NFSv4 is built here: everything
     # it needs is packaged (libevent, SQLite for nfsdcld, keyutils for
