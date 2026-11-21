@@ -1,0 +1,15 @@
+[service]
+name = "nfs-idmapd"
+exec = ["/usr/sbin/rpc.idmapd", "-f"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+requires = ["rpc-pipefs"]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"

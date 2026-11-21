@@ -1,0 +1,15 @@
+[service]
+name = "nfs-mountd"
+exec = ["/usr/sbin/rpc.mountd", "-F"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+requires = ["nfsd-mount", "rpcbind"]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"

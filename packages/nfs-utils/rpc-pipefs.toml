@@ -1,0 +1,15 @@
+[service]
+name = "rpc-pipefs"
+exec = ["/bin/sh", "-ec", "/usr/bin/mountpoint -q /var/lib/nfs/rpc_pipefs || exec /usr/bin/mount -t rpc_pipefs rpc_pipefs /var/lib/nfs/rpc_pipefs"]
+type = "oneshot"
+enabled = false
+remain-after-exit = true
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["tmpfiles-setup"]
+
+[readiness]
+type = "none"

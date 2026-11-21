@@ -1,0 +1,14 @@
+[service]
+name = "rpc-statd-notify"
+exec = ["/usr/sbin/sm-notify", "-d"]
+type = "oneshot"
+enabled = false
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["tmpfiles-setup", "nfs-server", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"

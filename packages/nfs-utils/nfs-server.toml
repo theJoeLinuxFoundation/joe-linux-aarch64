@@ -1,0 +1,19 @@
+[service]
+name = "nfs-server"
+exec = ["/bin/sh", "-ec", "/usr/sbin/exportfs -r; /usr/sbin/nfsdctl autostart || /usr/sbin/rpc.nfsd; /usr/sbin/sm-notify || echo 'NFS peer notification failed' >&2"]
+type = "oneshot"
+enabled = false
+remain-after-exit = true
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+requires = ["nfs-mountd", "rpc-statd", "nfs-idmapd", "nfsdcld"]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[shutdown]
+stop-exec = ["/bin/sh", "-ec", "/usr/sbin/nfsdctl threads 0 || /usr/sbin/rpc.nfsd 0; /usr/sbin/exportfs -au; /usr/sbin/exportfs -f"]
+
+[readiness]
+type = "none"

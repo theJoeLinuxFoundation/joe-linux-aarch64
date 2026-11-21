@@ -1,0 +1,15 @@
+[service]
+name = "nfsdcld"
+exec = ["/usr/sbin/nfsdcld", "-F"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+requires = ["rpc-pipefs", "nfsd-mount"]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"

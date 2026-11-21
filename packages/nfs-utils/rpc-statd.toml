@@ -1,0 +1,16 @@
+[service]
+name = "rpc-statd"
+exec = ["/usr/sbin/rpc.statd", "-F"]
+type = "simple"
+enabled = false
+environment = { RPC_STATD_NO_NOTIFY = "1" }
+
+[restart]
+policy = "transient"
+
+[dependencies]
+requires = ["rpcbind"]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"

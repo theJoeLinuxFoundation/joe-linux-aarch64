@@ -1,0 +1,15 @@
+[service]
+name = "nfsd-mount"
+exec = ["/bin/sh", "-ec", "/usr/bin/mountpoint -q /proc/fs/nfsd && exit 0; test -d /proc/fs/nfsd || /usr/sbin/modprobe nfsd; exec /usr/bin/mount -t nfsd nfsd /proc/fs/nfsd"]
+type = "oneshot"
+enabled = false
+remain-after-exit = true
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["tmpfiles-setup"]
+
+[readiness]
+type = "none"

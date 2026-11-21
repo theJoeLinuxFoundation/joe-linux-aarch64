@@ -1,0 +1,21 @@
+.{
+    .name = "nfs-utils",
+    .version = "3.1.1",
+    .release = 1,
+    .description = "NFS client and server programs: mount.nfs, exportfs and the NFS daemons",
+    .license = "GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://www.kernel.org/pub/linux/utils/nfs-utils/3.1.1/nfs-utils-3.1.1.tar.xz", .sha256 = "7dbc05eb8b32828b322872b759a62cb3979cb4118f344dd8616813d1390e84e0" },
+    },
+    // util-linux: libmount and libblkid (libuuid). rpcbind is needed by the
+    // NFSv3 server and by locking. The tools nfsiostat, mountstats and
+    // rpcctl are Python scripts.
+    .depends = .{ "bionic", "libtirpc", "libevent", "libnl", "libxml2", "sqlite", "keyutils", "libcap", "readline", "util-linux", "rpcbind", "kmod", "python", "dynamod" },
+    .build_depends = .{ "pkgconf", "rpcsvc-proto" },
+    // Set-uid root. Run by an ordinary user, a program holds only what its
+    // seal declares (packages/linux/joe-lsm), so these declare all;
+    // narrower lists are rule 3's work.
+    .operations = .{
+        .{ .programs = .{ "usr/sbin/mount.nfs" }, .allow = .{"all"} },
+    },
+}

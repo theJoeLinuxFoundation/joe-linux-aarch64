@@ -1,0 +1,16 @@
+# Enable for automatic filesystem IDs when re-exporting NFS mounts.
+[service]
+name = "fsidd"
+exec = ["/usr/sbin/fsidd"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+before = ["nfs-mountd"]
+
+[readiness]
+type = "none"
