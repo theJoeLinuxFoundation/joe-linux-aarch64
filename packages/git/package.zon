@@ -1,0 +1,13 @@
+.{
+    .name = "git",
+    .version = "2.56.1",
+    .release = 1,
+    .description = "Fast, scalable, distributed revision control system",
+    .license = "GPL-2.0-only",
+    .sources = .{
+        .{ .url = "https://www.kernel.org/pub/software/scm/git/git-2.56.1.tar.xz", .sha256 = "f0b0bf89264b9bd2e1c640363e7529643989da76281600473c50745cd34a607f" },
+        .{ .url = "https://www.kernel.org/pub/software/scm/git/git-manpages-2.56.1.tar.xz", .sha256 = "6ea093f15745a9ac85fe1b1d4fe488413d54e68d0fcb10bab62f047f362cf6de" },
+    },
+    .depends = .{ "bionic", "zlib", "openssl", "curl", "expat", "pcre2", "perl", "python", "libintl" },
+    .build_depends = .{"gettext"},
+}
