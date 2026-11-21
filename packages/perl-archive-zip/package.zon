@@ -1,0 +1,13 @@
+.{
+    .name = "perl-archive-zip",
+    .version = "1.68",
+    .release = 1,
+    .description = "Perl module for reading and writing ZIP archives",
+    .license = "Artistic-1.0-Perl OR GPL-1.0-or-later",
+    .sources = .{
+        .{ .url = "https://cpan.metacpan.org/authors/id/P/PH/PHRED/Archive-Zip-1.68.tar.gz", .sha256 = "984e185d785baf6129c6e75f8eb44411745ac00bf6122fb1c8e822a3861ec650" },
+    },
+    // Compress::Raw::Zlib and the other modules it needs are part of perl.
+    .depends = .{"perl"},
+    .build_depends = .{"perl"},
+}
