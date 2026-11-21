@@ -1,7 +1,7 @@
 .{
     .name = "zsh",
     .version = "5.9.2",
-    .release = 1,
+    .release = 2,
     .description = "Z shell, an interactive shell with programmable completion and a bash-like scripting language",
     .license = "MIT-Modern-Variant",
     .sources = .{
