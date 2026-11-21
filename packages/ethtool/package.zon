@@ -1,0 +1,12 @@
+.{
+    .name = "ethtool",
+    .version = "7.2",
+    .release = 1,
+    .description = "Query and control network drivers and hardware settings",
+    .license = "GPL-2.0-only",
+    .sources = .{
+        .{ .url = "https://www.kernel.org/pub/software/network/ethtool/ethtool-7.2.tar.xz", .sha256 = "44256ddf4631ed08d816b7b8725f4b2e0f05e96b8c7ca64ee5c81449da2b6507" },
+    },
+    .depends = .{ "bionic", "libmnl" },
+    .build_depends = .{"pkgconf"},
+}
