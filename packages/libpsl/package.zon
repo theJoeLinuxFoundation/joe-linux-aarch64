@@ -1,0 +1,12 @@
+.{
+    .name = "libpsl",
+    .version = "0.23.3",
+    .release = 1,
+    .description = "Library for the Public Suffix List",
+    .license = "MIT",
+    .sources = .{
+        .{ .url = "https://github.com/rockdaboot/libpsl/releases/download/0.23.3/libpsl-0.23.3.tar.gz", .sha256 = "93941f85a1e7bd593fa94f299233cb5dfc91cd144fd9a78a6ceb75001c5b03be" },
+    },
+    .depends = .{ "bionic", "libidn2", "libunistring", "python" },
+    .build_depends = .{ "meson", "ninja", "pkgconf", "python" },
+}
