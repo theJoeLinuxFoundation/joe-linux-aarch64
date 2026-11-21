@@ -1,0 +1,15 @@
+.{
+    .name = "ccache",
+    .version = "4.14.3",
+    .release = 1,
+    .description = "Compiler cache that speeds up recompilation by caching earlier results",
+    .license = "GPL-3.0-or-later AND MIT AND CC0-1.0 AND (Apache-2.0 OR CC0-1.0)",
+    .sources = .{
+        .{ .url = "https://github.com/ccache/ccache/releases/download/v4.14.3/ccache-4.14.3.tar.xz", .sha256 = "e1999132cf7dbce48de7d946b767f3e26ea09adcb5daa4a7103a8fa09ee0637d" },
+    },
+    // xxhash and zstd from the system. fmt (MIT), BLAKE3 (Apache-2.0 OR
+    // CC0), tl-expected (CC0), cpp-httplib and cxxurl (MIT) come from
+    // src/third_party, which upstream supplies for offline builds.
+    .depends = .{ "bionic", "llvm-runtimes", "xxhash", "zstd" },
+    .build_depends = .{ "cmake", "ninja" },
+}
