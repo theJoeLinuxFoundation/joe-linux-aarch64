@@ -1,0 +1,10 @@
+.{
+    .name = "hwdata",
+    .version = "0.413",
+    .release = 1,
+    .description = "Hardware identification and configuration data (PCI, USB and PnP ids)",
+    .license = "GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://github.com/vcrhonek/hwdata/archive/v0.413/hwdata-0.413.tar.gz", .sha256 = "5a71ab7a48c668ef912fcfdbec046949087019f8dd7fb967445d36fbeb778350" },
+    },
+}
