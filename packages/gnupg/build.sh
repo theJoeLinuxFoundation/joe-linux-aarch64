@@ -6,6 +6,8 @@ prepare() {
         /have_android_system=yes/d
         /build_wks_tools=no/d
     }' configure
+    # Without AM_ICONV's declaration probe, use bionic's char ** input.
+    export CPPFLAGS="${CPPFLAGS:+$CPPFLAGS }-DICONV_CONST="
 }
 
 build() {
