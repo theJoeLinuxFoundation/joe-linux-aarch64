@@ -1,0 +1,12 @@
+.{
+    .name = "rpcsvc-proto",
+    .version = "1.4.4",
+    .release = 1,
+    .description = "The rpcsvc protocol definitions and headers, and the rpcgen program",
+    .license = "BSD-3-Clause",
+    .sources = .{
+        .{ .url = "https://github.com/thkukuk/rpcsvc-proto/releases/download/v1.4.4/rpcsvc-proto-1.4.4.tar.xz", .sha256 = "81c3aa27edb5d8a18ef027081ebb984234d5b5860c65bd99d4ac8f03145a558b" },
+    },
+    // rpcgen uses the development toolchain's cpp from PATH.
+    .depends = .{ "bionic", "libintl" },
+}
