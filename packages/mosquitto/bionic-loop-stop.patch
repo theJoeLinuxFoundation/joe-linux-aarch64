@@ -1,0 +1,132 @@
+--- a/config.h
++++ b/config.h
+@@ -73,7 +73,7 @@
+ #define UNUSED(A) (void)(A)
+ 
+ /* Android Bionic libpthread implementation doesn't have pthread_cancel */
+-#if !defined(ANDROID) && !defined(WIN32)
++#if !defined(__ANDROID__) && !defined(WIN32)
+ #  define HAVE_PTHREAD_CANCEL
+ #endif
+ 
+--- a/lib/mosquitto_internal.h
++++ b/lib/mosquitto_internal.h
+@@ -367,7 +367,11 @@
+ 	enum mosquitto__keyform tls_keyform;
+ #endif
+ 	bool want_write;
++#ifdef __ANDROID__
++	_Atomic bool run;
++#else
+ 	bool run;
++#endif
+ #if defined(WITH_THREADING) && !defined(WITH_BROKER)
+ 	pthread_mutex_t callback_mutex;
+ 	pthread_mutex_t log_callback_mutex;
+@@ -442,7 +446,11 @@
+ 	bool disable_socketpair;
+ 	bool reconnect_exponential_backoff;
+ 	bool request_disconnect;
++#ifdef __ANDROID__
++	_Atomic char threaded;
++#else
+ 	char threaded;
++#endif
+ 	struct mosquitto__packet *out_packet_last;
+ 	mosquitto_property *connect_properties;
+ #  ifdef WITH_SRV
+--- a/lib/thread_mosq.c
++++ b/lib/thread_mosq.c
+@@ -48,6 +48,11 @@
+ 		return MOSQ_ERR_INVAL;
+ 	}
+ 
++#ifdef __ANDROID__
++	/* Publish the run flag before creation so even a client that has never
++	 * connected can stop and join its worker without pthread_cancel. */
++	mosq->run = true;
++#endif
+ 	mosq->threaded = mosq_ts_self;
+ 	if(!COMPAT_pthread_create(&mosq->thread_id, NULL, mosquitto__thread_main, mosq)){
+ #if defined(__linux__)
+@@ -59,6 +64,9 @@
+ #endif
+ 		return MOSQ_ERR_SUCCESS;
+ 	}else{
++#ifdef __ANDROID__
++		mosq->threaded = mosq_ts_none;
++#endif
+ 		return MOSQ_ERR_ERRNO;
+ 	}
+ #else
+@@ -126,6 +134,9 @@
+ 	}
+ 
+ 	do{
++#ifdef __ANDROID__
++		if(!mosq->run) return NULL;
++#endif
+ 		if(mosquitto__get_state(mosq) == mosq_cs_new){
+ #ifdef WIN32
+ 			Sleep(10);
+--- a/lib/loop.c
++++ b/lib/loop.c
+@@ -203,6 +203,10 @@
+ 	}
+ #endif
+ 
++#ifdef __ANDROID__
++	/* A stop request may have supplied the byte we just drained. */
++	if(!mosq->run) return MOSQ_ERR_SUCCESS;
++#endif
+ 	local_timeout.tv_sec = reconnect_delay;
+ #ifdef HAVE_PSELECT
+ 	local_timeout.tv_nsec = 0;
+@@ -251,7 +255,10 @@
+ 	}
+ 
+ 	mosq->reconnects = 0;
+-	mosq->run = true;
++#ifdef __ANDROID__
++	if(mosq->threaded != mosq_ts_self)
++#endif
++		mosq->run = true;
+ 
+ 	while(mosq->run){
+ 		do{
+@@ -260,6 +267,9 @@
+ #endif
+ 			rc = mosquitto_loop(mosq, timeout, max_packets);
+ 		}while(mosq->run && rc == MOSQ_ERR_SUCCESS);
++#ifdef __ANDROID__
++		if(!mosq->run) break;
++#endif
+ 		/* Quit after fatal errors. */
+ 		switch(rc){
+ 			case MOSQ_ERR_NOMEM:
+@@ -310,6 +320,9 @@
+ 					return rc;
+ 				}
+ 
++#ifdef __ANDROID__
++				if(!mosq->run) break;
++#endif
+ 				if(mosquitto__get_request_disconnect(mosq)){
+ 					mosq->run = false;
+ 				}else{
+--- a/lib/libmosquitto.c
++++ b/lib/libmosquitto.c
+@@ -254,7 +254,12 @@
+ 	}
+ 
+ #ifdef WITH_THREADING
+-#  ifdef HAVE_PTHREAD_CANCEL
++#  if defined(__ANDROID__)
++	/* Wake and join the network loop before destroying its mutexes. */
++	if(mosq->threaded == mosq_ts_self && !pthread_equal(mosq->thread_id, pthread_self())){
++		mosquitto_loop_stop(mosq, false);
++	}
++#  elif defined(HAVE_PTHREAD_CANCEL)
+ 	if(mosq->threaded == mosq_ts_self && !pthread_equal(mosq->thread_id, pthread_self())){
+ 		COMPAT_pthread_cancel(mosq->thread_id);
+ 		COMPAT_pthread_join(mosq->thread_id, NULL);

@@ -1,0 +1,18 @@
+[service]
+name = "mosquitto"
+exec = ["/usr/sbin/mosquitto", "-c", "/etc/mosquitto/mosquitto.conf"]
+type = "simple"
+enabled = false
+
+[service.user]
+user = "mosquitto"
+group = "mosquitto"
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"

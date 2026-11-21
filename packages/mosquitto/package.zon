@@ -1,0 +1,17 @@
+.{
+    .name = "mosquitto",
+    .version = "2.1.2",
+    .release = 1,
+    .description = "Eclipse Mosquitto MQTT broker, clients and libmosquitto",
+    .license = "EPL-2.0 OR BSD-3-Clause",
+    .sources = .{
+        // Checked against upstream's GPG signature (.asc, key
+        // A0D6EEA1DCAE49A635A3B2F0779B22DFB3E717B7, Roger A. Light).
+        .{ .url = "https://mosquitto.org/files/source/mosquitto-2.1.2.tar.gz", .sha256 = "fd905380691ac65ea5a93779e8214941829e3d6e038d5edff9eac5fd74cbed02" },
+    },
+    // OpenSSL (TLS, TLS-PSK), cJSON (required), argon2 (found and linked),
+    // SQLite (the persist-sqlite plugin), readline (mosquitto_ctrl's
+    // shell) and libc++ (libmosquittopp).
+    .depends = .{ "bionic", "llvm-runtimes", "openssl", "cjson", "argon2", "sqlite", "readline" },
+    .build_depends = .{ "cmake", "ninja", "pkgconf" },
+}
