@@ -1,0 +1,15 @@
+.{
+    .name = "autoconf-archive",
+    .version = "2026.11.11",
+    .release = 1,
+    .description = "Collection of freely reusable Autoconf macros",
+    .license = "GPL-3.0-or-later WITH Autoconf-exception-macro AND FSFAP",
+    .sources = .{
+        // Checked against its GNU signature (gnu-keyring.gpg).
+        .{ .url = "https://ftpmirror.gnu.org/autoconf-archive/autoconf-archive-2026.11.11.tar.xz", .sha256 = "2c18f15e2b3bb79e09622b27391df07d8608ce9f07fbfc7c1143fa683891ab26" },
+    },
+    // Only .m4 files for aclocal; they are of use with autoconf and
+    // automake but need nothing to be installed.
+    .depends = .{},
+    .build_depends = .{},
+}
