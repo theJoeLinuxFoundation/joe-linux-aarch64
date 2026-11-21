@@ -1,0 +1,196 @@
+joe Linux: provide the GNU reentrant service-name lookup used by nfs-utils.
+Share the decoder and return the names and aligned alias array in caller storage.
+
+diff --git a/libc/dns/net/getservent.c b/libc/dns/net/getservent.c
+index 6a50d23..b8bada0 100644
+--- a/libc/dns/net/getservent.c
++++ b/libc/dns/net/getservent.c
+@@ -29,13 +29,15 @@
+ #include <netdb.h>
+ 
+ #include <endian.h>
++#include <errno.h>
++#include <stdint.h>
+ #include <stdlib.h>
+ #include <string.h>
+ 
+ #include "resolv_static.h"
+ #include "services.h"
+ 
+-struct servent* getservent_r(struct res_static* rs) {
++static struct servent* next_service(const char** cursor, struct servent* entry) {
+     const char*  p;
+     const char*  q;
+     int          namelen;
+@@ -44,7 +46,7 @@ struct servent* getservent_r(struct res_static* rs) {
+     int          port;
+     char*        p2;
+ 
+-    p = rs->servent_ptr;
++    p = *cursor;
+     if (p == NULL)
+         p = _services;
+     else if (p[0] == 0)
+@@ -65,43 +67,43 @@ struct servent* getservent_r(struct res_static* rs) {
+     }
+ 
+     /* reallocate the thread-specific servent struct */
+-    p2 = realloc( (char*)rs->servent.s_aliases, total );
++    p2 = realloc( (char*)entry->s_aliases, total );
+     if (p2 == NULL)
+         return NULL;
+ 
+     /* now write to it */
+-    rs->servent.s_aliases = (char**) p2;
++    entry->s_aliases = (char**) p2;
+     p2                   += (count+1)*sizeof(char*);
+-    rs->servent.s_name    = p2;
++    entry->s_name    = p2;
+     p2                   += namelen + 1;
+-    rs->servent.s_proto   = p2;
++    entry->s_proto   = p2;
+ 
+     /* copy name + port + setup protocol */
+-    memcpy( rs->servent.s_name, p+1, namelen );
+-    rs->servent.s_name[namelen] = 0;
++    memcpy( entry->s_name, p+1, namelen );
++    entry->s_name[namelen] = 0;
+     p += 1 + namelen;
+ 
+     /* s_port must be in network byte order */
+     port = ((((unsigned char*)p)[0] << 8) |
+              ((unsigned char*)p)[1]);
+ 
+-    rs->servent.s_port  = htons(port);
+-    rs->servent.s_proto = p[2] == 't' ? "tcp" : "udp";
++    entry->s_port  = htons(port);
++    entry->s_proto = p[2] == 't' ? "tcp" : "udp";
+     p += 4;  /* skip port(2) + proto(1) + aliascount(1) */
+ 
+     for (nn = 0; nn < count; nn++) {
+         int  len2 = p[0];
+-        rs->servent.s_aliases[nn] = p2;
++        entry->s_aliases[nn] = p2;
+         memcpy( p2, p+1, len2 );
+         p2[len2] = 0;
+         p2 += len2 + 1;
+         p  += len2 + 1;
+     }
+-    rs->servent.s_aliases[nn] = NULL;
++    entry->s_aliases[nn] = NULL;
+ 
+-    rs->servent_ptr = p;
++    *cursor = p;
+ 
+-    return &rs->servent;
++    return entry;
+ }
+ 
+ void setservent(int stayopen) {
+@@ -115,23 +117,60 @@ void endservent(void) {
+ 
+ struct servent* getservent(void) {
+   struct res_static* rs = __res_get_static();
+-  return rs ? getservent_r(rs) : NULL;
++  return rs ? next_service(&rs->servent_ptr, &rs->servent) : NULL;
++}
++
++static struct servent* find_service(const char* name, const char* proto, struct servent* entry) {
++  const char* cursor = NULL;
++  while (next_service(&cursor, entry) != NULL) {
++    if (proto != NULL && strcmp(entry->s_proto, proto) != 0) continue;
++    if (strcmp(entry->s_name, name) == 0) return entry;
++    for (char** alias = entry->s_aliases; *alias != NULL; ++alias) {
++      if (strcmp(*alias, name) == 0) return entry;
++    }
++  }
++  return NULL;
+ }
+ 
+ struct servent* getservbyname(const char* name, const char* proto) {
+   struct res_static* rs = __res_get_static();
+-  if (rs == NULL) return NULL;
++  return rs ? find_service(name, proto, &rs->servent) : NULL;
++}
+ 
+-  const char* old_servent_ptr = rs->servent_ptr;
+-  rs->servent_ptr = NULL;
+-  struct servent* s;
+-  while ((s = getservent_r(rs)) != NULL) {
+-    if (strcmp(s->s_name, name) == 0 && (proto == NULL || strcmp(s->s_proto, proto) == 0)) {
+-      break;
+-    }
++int getservbyname_r(const char* name, const char* proto, struct servent* entry,
++                    char* buffer, size_t size, struct servent** result) {
++  struct servent tmp = {};
++  *result = NULL;
++  errno = 0;
++  if (find_service(name, proto, &tmp) == NULL) {
++    int error = errno;
++    free(tmp.s_aliases);
++    return error;
+   }
+-  rs->servent_ptr = old_servent_ptr;
+-  return s;
++
++  size_t count = 0;
++  size_t bytes = strlen(tmp.s_name) + strlen(tmp.s_proto) + 2;
++  for (; tmp.s_aliases[count] != NULL; ++count) bytes += strlen(tmp.s_aliases[count]) + 1;
++  size_t padding = -(uintptr_t)buffer % _Alignof(char*);
++  size_t pointers = (count + 1) * sizeof(char*);
++  if (padding + pointers + bytes > size) {
++    free(tmp.s_aliases);
++    return ERANGE;
++  }
++
++  entry->s_port = tmp.s_port;
++  entry->s_aliases = (char**)(buffer + padding);
++  entry->s_name = buffer + padding + pointers;
++  entry->s_proto = stpcpy(entry->s_name, tmp.s_name) + 1;
++  char* next = stpcpy(entry->s_proto, tmp.s_proto) + 1;
++  for (size_t i = 0; i < count; ++i) {
++    entry->s_aliases[i] = next;
++    next = stpcpy(next, tmp.s_aliases[i]) + 1;
++  }
++  entry->s_aliases[count] = NULL;
++  free(tmp.s_aliases);
++  *result = entry;
++  return 0;
+ }
+ 
+ struct servent* getservbyport(int port, const char* proto) {
+@@ -141,7 +180,7 @@ struct servent* getservbyport(int port, const char* proto) {
+   const char* old_servent_ptr = rs->servent_ptr;
+   rs->servent_ptr = NULL;
+   struct servent* s;
+-  while ((s = getservent_r(rs)) != NULL) {
++  while ((s = next_service(&rs->servent_ptr, &rs->servent)) != NULL) {
+     if (s->s_port == port && (proto == NULL || strcmp(s->s_proto, proto) == 0)) {
+       break;
+     }
+diff --git a/libc/include/netdb.h b/libc/include/netdb.h
+index 7517cdc..b8308a6 100644
+--- a/libc/include/netdb.h
++++ b/libc/include/netdb.h
+@@ -275,6 +275,9 @@ void setprotoent(int __stay_open) __INTRODUCED_IN(28);
+ /* These functions return entries from a built-in database. */
+ void endservent(void);
+ struct servent* _Nullable getservbyname(const char* _Nonnull __name, const char* _Nullable __proto);
++int getservbyname_r(const char* _Nonnull __name, const char* _Nullable __proto,
++                    struct servent* _Nonnull __entry, char* _Nonnull __buf, size_t __size,
++                    struct servent* _Nullable * _Nonnull __result);
+ struct servent* _Nullable getservbyport(int __port_in_network_order, const char* _Nullable __proto);
+ struct servent* _Nullable getservent(void);
+ void setservent(int __stay_open);
+diff --git a/libc/libc.map.txt b/libc/libc.map.txt
+index 7c64474..bb9d512 100644
+--- a/libc/libc.map.txt
++++ b/libc/libc.map.txt
+@@ -480,6 +480,7 @@ LIBC {
+     getrusage;
+     gets;
+     getservbyname;
++    getservbyname_r;
+     getservbyport;
+     getservent;
+     getsid;
