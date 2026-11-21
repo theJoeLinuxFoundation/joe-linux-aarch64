@@ -10,7 +10,7 @@
     // util-linux: libmount and libblkid (libuuid). rpcbind is needed by the
     // NFSv3 server and by locking. The tools nfsiostat, mountstats and
     // rpcctl are Python scripts.
-    .depends = .{ "bionic", "libtirpc", "libevent", "libnl", "libxml2", "sqlite", "keyutils", "libcap", "readline", "util-linux", "rpcbind", "kmod", "python", "dynamod" },
+    .depends = .{ "bionic", "libtirpc", "libevent", "libnl", "libxml2", "sqlite", "keyutils", "libcap", "readline", "util-linux", "rpcbind", "kmod", "python", "dynamod", "coreutils" },
     .build_depends = .{ "pkgconf", "rpcsvc-proto" },
     // Set-uid root. Run by an ordinary user, a program holds only what its
     // seal declares (packages/linux/joe-lsm), so these declare all;

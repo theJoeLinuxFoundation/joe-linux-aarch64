@@ -1,0 +1,29 @@
+#!/bin/sh
+# mount.nfs calls this with an empty environment for NFSv3 locking.
+export PATH=/usr/sbin:/usr/bin
+
+# Serialize simultaneous mounts with the lock used by upstream.
+exec 9>/run/rpc.statd.lock
+flock -x 9 || exit 1
+
+# An explicit dynamod start only acknowledges the named service. Wait for
+# rpcbind before starting statd, and for statd before returning to mount.nfs.
+start_and_wait() {
+    service=$1
+    shift
+    timeout 1 rpcinfo "$@" >/dev/null 2>&1 && return 0
+    dynamodctl start "$service" || return 1
+    tries=10
+    until timeout 1 rpcinfo "$@" >/dev/null 2>&1; do
+        tries=$((tries - 1))
+        if [ "$tries" -eq 0 ]; then
+            echo "start-statd: $service did not answer its local RPC probe" >&2
+            return 1
+        fi
+        sleep 1
+    done
+}
+
+start_and_wait rpcbind -p 127.0.0.1 || exit 1
+# Probe the same status-monitor program, version and transport as mount.nfs.
+start_and_wait rpc-statd -T udp 127.0.0.1 100024 1

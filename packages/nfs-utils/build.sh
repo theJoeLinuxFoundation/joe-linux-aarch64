@@ -1,10 +1,3 @@
-prepare() {
-    # Keep upstream's lock and PID check when mount.nfs needs NFSv3 locking.
-    # Hand the process to dynamod so startup pulls in rpcbind as well.
-    sed -i '/^# First try systemd/,$d' utils/statd/start-statd
-    echo 'exec /usr/bin/dynamodctl start rpc-statd' >> utils/statd/start-statd
-}
-
 build() {
     # The book builds without NFSv4 and GSS. NFSv4 is built here: everything
     # it needs is packaged (libevent, SQLite for nfsdcld, keyutils for
@@ -35,6 +28,7 @@ package() {
     make DESTDIR="$DESTDIR" install
     # The book's chmod: the set-uid mount.nfs is otherwise unreadable.
     chmod u+w,go+r "$DESTDIR/usr/sbin/mount.nfs"
+    install -m755 /recipe/start-statd "$DESTDIR/usr/sbin/start-statd"
 
     # Upstream's configuration files, everything commented out at the
     # defaults.
