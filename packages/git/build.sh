@@ -1,3 +1,11 @@
+prepare() {
+    # Bionic threads cannot be cancelled. Keep the signal mask around fork,
+    # but skip saving and restoring a cancellation state that does not exist.
+    sed -i '/CHECK_BUG(pthread_setcancelstate/i #ifndef __ANDROID__
+            /"disabling cancellation");/a #endif
+            /"re-enabling cancellation");/a #endif' run-command.c
+}
+
 build() {
     # No Tcl/Tk in joe, so neither gitk nor git-gui. The book's optional
     # Rust parts can build offline, but this package uses the C implementation.
