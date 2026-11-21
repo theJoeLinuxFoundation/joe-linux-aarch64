@@ -1,0 +1,12 @@
+.{
+    .name = "libssh2",
+    .version = "1.11.1",
+    .release = 1,
+    .description = "Client-side C library implementing the SSH2 protocol",
+    .license = "BSD-3-Clause",
+    .sources = .{
+        .{ .url = "https://www.libssh2.org/download/libssh2-1.11.1.tar.gz", .sha256 = "d9ec76cbe34db98eec3539fe2c899d26b0c837cb3eb466a56b0f109cabf658f7" },
+        .{ .url = "https://www.linuxfromscratch.org/patches/blfs/svn/libssh2-1.11.1-security_fixes-1.patch", .sha256 = "919a91a0ef99a97efe1f94e2bed7600ce12fdf5f3e6c978b8eba37fe4526ec5e" },
+    },
+    .depends = .{ "bionic", "openssl", "zlib" },
+}
