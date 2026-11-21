@@ -1,0 +1,11 @@
+.{
+    .name = "time",
+    .version = "1.10",
+    .release = 1,
+    .description = "GNU time, which reports the time and resources a command used",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/time/time-1.10.tar.gz", .sha256 = "e8c29fb4ab599d8478e41e8618f50db8aede9c90af27d0d2ef28ae50d5de09c3" },
+    },
+    .depends = .{"bionic"},
+}
