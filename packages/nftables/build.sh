@@ -1,4 +1,11 @@
 # Not in the book: the newest upstream release, built as its INSTALL says.
+prepare() {
+    # Bionic exposes the kernel ipv6hdr and TCP_FLAG_* through its network
+    # headers. The private nftables flags describe a byte, while the kernel
+    # flags describe a network-order word. Keep the two definitions distinct.
+    sed -i 's/\<ipv6hdr\>/nft_ipv6hdr/g; s/\<TCP_FLAG_/NFT_TCP_FLAG_/g' include/headers.h src/proto.c
+}
+
 build() {
     # The interactive mode (nft -i) uses readline: upstream's default,
     # libedit, is not packaged. JSON input and output use jansson. No
