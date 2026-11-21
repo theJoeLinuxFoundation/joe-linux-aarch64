@@ -1,0 +1,13 @@
+.{
+    .name = "iptables",
+    .version = "1.8.13",
+    .release = 1,
+    .description = "Administration tools for IPv4 and IPv6 packet filtering and NAT, over nftables by default",
+    .license = "GPL-2.0-only",
+    .sources = .{
+        .{ .url = "https://www.netfilter.org/projects/iptables/files/iptables-1.8.13.tar.xz", .sha256 = "1afcd33da9e8f913ace6a2126788162e207e26f5d5e29c6573c0e581ffc58b99" },
+    },
+    // libmnl and libnftnl drive xtables-nft-multi. bash runs iptables-apply.
+    .depends = .{ "bionic", "libmnl", "libnftnl", "bash" },
+    .build_depends = .{"pkgconf"},
+}
