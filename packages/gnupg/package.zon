@@ -7,6 +7,6 @@
     .sources = .{
         .{ .url = "https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-2.5.24.tar.bz2", .sha256 = "bf149d01a2b9fcc0e4589b8ae8697d3d5c557ea48ed95a3fa55dd3b1187e6039" },
     },
-    .depends = .{ "bionic", "libgpg-error", "libgcrypt", "libassuan", "libksba", "npth", "libintl", "sqlite", "readline", "zlib", "bzip2", "libusb", "pinentry" },
+    .depends = .{ "bionic", "libgpg-error", "libgcrypt", "libassuan", "libksba", "npth", "libintl", "gnutls", "sqlite", "readline", "zlib", "bzip2", "libusb", "pinentry" },
     .build_depends = .{ "pkgconf", "gettext" },
 }

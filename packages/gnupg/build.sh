@@ -7,17 +7,18 @@ prepare() {
 build() {
     mkdir build
     cd build
-    # dirmngr needs GnuTLS or NTBTLS for keyservers and online certificate
-    # checks. Neither is packaged. LDAP keyservers and X.509 directory
-    # lookups also need OpenLDAP. scdaemon talks to CCID readers through
-    # libusb, while tpm2d would need tpm2-tss.
+    # The book lists OpenLDAP as required, but configure only needs it for
+    # LDAP keyservers and X.509 directory lookups in dirmngr; joe has no
+    # OpenLDAP, so that is switched off. Keyservers over hkps and https use
+    # GnuTLS (NTBTLS is not packaged). The smart card daemon talks to readers
+    # directly through libusb. tpm2d would need tpm2-tss.
     ../configure --prefix=/usr \
         --localstatedir=/var \
         --sysconfdir=/etc \
-        --disable-gnutls \
-        --disable-dirmngr \
-        --disable-dirmngr-auto-start \
-        --disable-wks-tools \
+        --enable-gnutls \
+        --enable-dirmngr \
+        --enable-dirmngr-auto-start \
+        --with-default-trust-store-file=/etc/pki/tls/certs/ca-bundle.crt \
         --enable-sqlite \
         --enable-ccid-driver \
         --disable-ntbtls \
@@ -29,4 +30,5 @@ build() {
 package() {
     cd build
     make DESTDIR="$DESTDIR" install
+    test -x "$DESTDIR/usr/bin/dirmngr"
 }
