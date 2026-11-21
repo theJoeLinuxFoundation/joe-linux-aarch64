@@ -1,0 +1,12 @@
+.{
+    .name = "c-ares",
+    .version = "1.34.9",
+    .release = 1,
+    .description = "C library for asynchronous DNS requests",
+    .license = "MIT",
+    .sources = .{
+        .{ .url = "https://github.com/c-ares/c-ares/releases/download/v1.34.9/c-ares-1.34.9.tar.gz", .sha256 = "9364b70a12eb59a06830fb488d9357f90100dff0d98b23ea3593a183d43e6f2f" },
+    },
+    .depends = .{"bionic"},
+    .build_depends = .{ "cmake", "make" },
+}
