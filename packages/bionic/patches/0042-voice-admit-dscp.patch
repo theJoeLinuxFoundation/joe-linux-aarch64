@@ -1,0 +1,16 @@
+joe Linux: define the Voice-Admit DSCP in netinet/ip.h for OpenBSD netcat.
+
+diff --git a/libc/include/netinet/ip.h b/libc/include/netinet/ip.h
+index e535364..da82c6b 100644
+--- a/libc/include/netinet/ip.h
++++ b/libc/include/netinet/ip.h
+@@ -86,6 +86,9 @@ struct ip {
+ #define IPTOS_ECT		0x02	/* ECN-capable transport */
+ #endif
+ 
++/* Voice-Admit DSCP, shifted into the IPv4 TOS field (RFC 5865). */
++#define IPTOS_DSCP_VA 0xb0
++
+ /*
+  * Definitions for IP precedence (also in ip_tos) (hopefully unused)
+  */
