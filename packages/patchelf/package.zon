@@ -1,0 +1,12 @@
+.{
+    .name = "patchelf",
+    .version = "0.19.3",
+    .release = 1,
+    .description = "Utility for modifying the dynamic linker and RPATH of ELF executables",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://github.com/NixOS/patchelf/releases/download/0.19.3/patchelf-0.19.3.tar.gz", .sha256 = "fac76a3c0b730e8d53ea1d10cd6015322d78c9900af91736f2cca51d5837b612" },
+    },
+    .depends = .{ "bionic", "llvm-runtimes" },
+    .build_depends = .{},
+}
