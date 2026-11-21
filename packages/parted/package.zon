@@ -1,7 +1,7 @@
 .{
     .name = "parted",
     .version = "3.8",
-    .release = 1,
+    .release = 2,
     .description = "Disk partitioning and partition resizing program and library",
     .license = "GPL-3.0-or-later",
     .sources = .{
