@@ -1,0 +1,12 @@
+.{
+    .name = "brotli",
+    .version = "1.2.1",
+    .release = 1,
+    .description = "Brotli compression library, command line tool and Python module",
+    .license = "MIT",
+    .sources = .{
+        .{ .url = "https://github.com/google/brotli/archive/v1.2.1/brotli-1.2.1.tar.gz", .sha256 = "98d35d11a78dc453aebb7d10c3748f3f73ff78c8267c0dc697b8631f67bf7e8f" },
+    },
+    .depends = .{ "bionic", "python" },
+    .build_depends = .{ "cmake", "ninja", "python", "setuptools", "wheel" },
+}
