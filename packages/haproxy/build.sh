@@ -6,7 +6,9 @@ build() {
     # on: Lua, PCRE2 with its JIT, and the Prometheus exporter. Compression
     # uses the bundled SLZ, upstream's default, rather than zlib. Systemd
     # notification is built in (Type=notify needs no library).
-    make CC="$CC" TARGET=linux-musl \
+    # cpu_set_t is a GNU extension on bionic. Select it before the first
+    # system header, including in files that include cpuset-t.h late.
+    make CC="$CC" CFLAGS="-D_GNU_SOURCE= ${CFLAGS:-}" TARGET=linux-musl \
         USE_OPENSSL=1 \
         USE_QUIC=1 \
         USE_LUA=1 \
