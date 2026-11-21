@@ -1,0 +1,162 @@
+joe Linux: read protocol names, numbers and aliases from /etc/protocols.
+Bionic’s stubs always returned null, so fping could not open its ICMP sockets.
+
+diff --git a/libc/bionic/netdb.cpp b/libc/bionic/netdb.cpp
+index dc2a037..b1b02e1 100644
+--- a/libc/bionic/netdb.cpp
++++ b/libc/bionic/netdb.cpp
+@@ -27,15 +27,20 @@
+  */
+ 
+ #include <netdb.h>
++#include <limits.h>
++#include <pthread.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <strings.h>
+ 
+-// We don't have an /etc/networks or /etc/protocols, so these are just dummies.
++#include "private/ScopedPthreadMutexLocker.h"
++
++// There is no /etc/networks database.
+ 
+ void endnetent() {
+ }
+ 
+-void endprotoent() {
+-}
+-
+ netent* getnetbyaddr(uint32_t /*net*/, int /*type*/) {
+   return nullptr;
+ }
+@@ -48,20 +53,103 @@ netent* getnetent() {
+   return nullptr;
+ }
+ 
+-protoent* getprotobyname(const char* /*name*/) {
+-  return nullptr;
+-}
+-
+-protoent* getprotobynumber(int /*proto*/) {
+-  return nullptr;
+-}
+-
+-protoent* getprotoent() {
+-  return nullptr;
+-}
+-
+ void setnetent(int /*stayopen*/) {
+ }
+ 
+-void setprotoent(int /*stayopen*/) {
++// The protocol database functions return pointers to shared storage. Hold
++// the lock while updating it, and retain the last entry after closing the file.
++static pthread_mutex_t proto_lock = PTHREAD_MUTEX_INITIALIZER;
++static FILE* protocols;
++static bool keep_open;
++static char* line;
++static size_t line_capacity;
++static char** aliases;
++static size_t alias_capacity;
++static protoent entry;
++
++static void close_protocols() {
++  if (protocols != nullptr) fclose(protocols);
++  protocols = nullptr;
++}
++
++static void rewind_protocols() {
++  if (protocols != nullptr) rewind(protocols);
++}
++
++static protoent* next_protocol() {
++  if (protocols == nullptr) protocols = fopen("/etc/protocols", "re");
++  if (protocols == nullptr) return nullptr;
++  while (getline(&line, &line_capacity, protocols) >= 0) {
++    line[strcspn(line, "#")] = '\0';
++    char* state;
++    const char* separators = " \t\r\n";
++    char* name = strtok_r(line, separators, &state);
++    char* number = strtok_r(nullptr, separators, &state);
++    if (name == nullptr || number == nullptr || *number < '0' || *number > '9') continue;
++    char* end;
++    long value = strtol(number, &end, 10);
++    if (*end != '\0' || value < 0 || value > INT_MAX) continue;
++    size_t count = 0;
++    for (;;) {
++      if (count == alias_capacity) {
++        size_t capacity = count ? count * 2 : 4;
++        auto new_aliases = static_cast<char**>(reallocarray(aliases, capacity, sizeof(char*)));
++        if (new_aliases == nullptr) return nullptr;
++        aliases = new_aliases;
++        alias_capacity = capacity;
++      }
++      aliases[count] = strtok_r(nullptr, separators, &state);
++      if (aliases[count] == nullptr) break;
++      ++count;
++    }
++    entry.p_name = name;
++    entry.p_proto = static_cast<int>(value);
++    entry.p_aliases = aliases;
++    return &entry;
++  }
++  return nullptr;
++}
++
++void setprotoent(int stayopen) {
++  ScopedPthreadMutexLocker locker(&proto_lock);
++  rewind_protocols();
++  if (protocols == nullptr) protocols = fopen("/etc/protocols", "re");
++  keep_open = stayopen != 0;
++}
++
++void endprotoent() {
++  ScopedPthreadMutexLocker locker(&proto_lock);
++  close_protocols();
++  keep_open = false;
++}
++
++protoent* getprotoent() {
++  ScopedPthreadMutexLocker locker(&proto_lock);
++  return next_protocol();
++}
++
++static protoent* find_protocol(const char* name, int number) {
++  ScopedPthreadMutexLocker locker(&proto_lock);
++  rewind_protocols();
++  protoent* p;
++  while ((p = next_protocol()) != nullptr) {
++    if (name == nullptr) {
++      if (p->p_proto == number) break;
++    } else {
++      if (!strcasecmp(p->p_name, name)) break;
++      char** alias = p->p_aliases;
++      while (*alias && strcasecmp(*alias, name)) ++alias;
++      if (*alias) break;
++    }
++  }
++  if (!keep_open) close_protocols();
++  return p;
++}
++
++protoent* getprotobyname(const char* name) {
++  return find_protocol(name, -1);
++}
++
++protoent* getprotobynumber(int number) {
++  return find_protocol(nullptr, number);
+ }
+diff --git a/libc/include/netdb.h b/libc/include/netdb.h
+index 906fde5..7517cdc 100644
+--- a/libc/include/netdb.h
++++ b/libc/include/netdb.h
+@@ -255,7 +255,7 @@ struct netent* _Nullable getnetent(void) __INTRODUCED_IN(28);
+ void setnetent(int __stay_open) __INTRODUCED_IN(28);
+ #endif
+ 
+-/* None of these functions return anything but nullptr. */
++/* Read the protocol names, numbers and aliases installed in /etc/protocols. */
+ 
+ #if __BIONIC_AVAILABILITY_GUARD(28)
+ void endprotoent(void) __INTRODUCED_IN(28);
