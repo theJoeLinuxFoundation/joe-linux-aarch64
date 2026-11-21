@@ -1,0 +1,11 @@
+.{
+    .name = "nasm",
+    .version = "3.02",
+    .release = 1,
+    .description = "The Netwide Assembler, an assembler for x86 and x86-64",
+    .license = "BSD-2-Clause",
+    .sources = .{
+        .{ .url = "https://www.nasm.us/pub/nasm/releasebuilds/3.02/nasm-3.02.tar.xz", .sha256 = "87336eba53b4acfe917424ab5d500d2b0054d9f5148d35c2273ccf2cfb712f0d" },
+    },
+    .depends = .{ "bionic", "zlib" },
+}
