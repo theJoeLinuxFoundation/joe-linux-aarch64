@@ -1,7 +1,7 @@
 .{
     .name = "mtools",
     .version = "4.0.50",
-    .release = 1,
+    .release = 2,
     .description = "Tools for reading and writing MS-DOS (FAT) file systems without mounting them",
     .license = "GPL-3.0-or-later",
     .sources = .{

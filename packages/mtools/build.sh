@@ -3,7 +3,9 @@
 build() {
     # floppyd serves a floppy drive to X sessions and needs libX11 and
     # libXau; it is not wanted, as in the Makefile's iso-tools target.
-    ./configure --prefix=/usr \
+    # Bionic iconv handles Unicode, but cannot convert DOS code pages.
+    # Use the upstream built-in tables, including the default CP850.
+    ac_cv_header_iconv_h=no ./configure --prefix=/usr \
         --sysconfdir=/etc \
         --disable-floppyd \
         --without-x
