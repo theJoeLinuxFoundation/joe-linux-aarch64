@@ -1,0 +1,12 @@
+.{
+    .name = "man-pages",
+    .version = "6.20",
+    .release = 1,
+    .description = "Manual pages for the Linux kernel and C library interfaces",
+    .license = "GPL-2.0-or-later AND BSD-3-Clause AND MIT AND Linux-man-pages-copyleft",
+    .sources = .{
+        .{ .url = "https://www.kernel.org/pub/linux/docs/man-pages/man-pages-6.20.tar.xz", .sha256 = "180f0d16a2142dd9671760ac0afeadcc25e861f695eb420293e1206a87ca083f" },
+    },
+    // The helper scripts in usr/bin (mansect, sortman, diffman-git, ...) are bash.
+    .depends = .{"bash"},
+}
