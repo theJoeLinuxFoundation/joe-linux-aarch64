@@ -1,7 +1,7 @@
 .{
     .name = "popt",
     .version = "1.19",
-    .release = 1,
+    .release = 2,
     .description = "Library for parsing command line options",
     .license = "MIT",
     .sources = .{
