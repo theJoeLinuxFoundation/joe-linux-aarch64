@@ -1,0 +1,14 @@
+Use OpenSSL 4.1's size_t length accessor without truncating certificate identities.
+--- a/src/tls.c
++++ b/src/tls.c
+@@ -1221,2 +1221,2 @@
+-    int str_len = ASN1_STRING_length(data);
+-    if (!str || str_len <= 0) return NULL;
++    size_t str_len = ASN1_STRING_get_length(data);
++    if (!str || str_len == 0) return NULL;
+@@ -1245,3 +1245,3 @@
+-            int uri_len = ASN1_STRING_length(uri_asn1);
++            size_t uri_len = ASN1_STRING_get_length(uri_asn1);
+ 
+-            if (!uri_data || uri_len <= 0 || memchr(uri_data, '\0', uri_len)) {
++            if (!uri_data || uri_len == 0 || memchr(uri_data, '\0', uri_len)) {

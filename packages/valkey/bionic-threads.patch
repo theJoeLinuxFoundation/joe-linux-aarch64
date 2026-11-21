@@ -1,0 +1,132 @@
+--- a/src/bio.c
++++ b/src/bio.c
+@@ -331,6 +331,7 @@
+  * used only when it's critical to stop the threads for some reason.
+  * Currently the server does this only on crash (for instance on SIGSEGV) in order
+  * to perform a fast memory check without other threads messing with memory. */
++#ifndef __ANDROID__
+ void bioKillThreads(void) {
+     int err;
+ 
+@@ -346,6 +347,8 @@
+     }
+ }
+ 
++#endif
++
+ int inBioThread(void) {
+     return bio_worker_num != 0;
+ }
+--- a/src/debug.c
++++ b/src/debug.c
+@@ -2182,6 +2182,9 @@
+ }
+ #endif /* HAVE_PROC_MAPS */
+ 
++/* The crash memory test writes to live mappings. It is safe only after
++ * every other thread has been stopped, which needs pthread cancellation. */
++#ifndef __ANDROID__
+ static void killMainThread(void) {
+     int err;
+     if (pthread_self() != server.main_thread_id && pthread_cancel(server.main_thread_id) == 0) {
+@@ -2203,8 +2206,10 @@
+     killIOThreads();
+ }
+ 
++#endif
++
+ void doFastMemoryTest(void) {
+-#if defined(HAVE_PROC_MAPS)
++#if defined(HAVE_PROC_MAPS) && !defined(__ANDROID__)
+     if (server.memcheck_enabled) {
+         /* Test memory */
+         serverLogRaw(LL_WARNING | LL_RAW, "\n------ FAST MEMORY TEST ------\n");
+--- a/src/server.c
++++ b/src/server.c
+@@ -2831,8 +2831,10 @@
+  * can work reliably (default cancellability type is PTHREAD_CANCEL_DEFERRED).
+  * Needed for pthread_cancel used by the fast memory test used by the crash report. */
+ void makeThreadKillable(void) {
++#ifndef __ANDROID__
+     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
++#endif
+ }
+ 
+ /* Return non-zero if the database is empty  */
+--- a/src/io_threads.c
++++ b/src/io_threads.c
+@@ -20,6 +20,11 @@
+ /* Backlog of responses when io_shared_outbox is full. Should be rare. */
+ static _Thread_local list *pending_io_responses = NULL;
+ static pthread_t io_threads[IO_THREADS_MAX_NUM] = {0};
++#ifdef __ANDROID__
++/* bionic lacks deferred cancellation. Stop a worker at the same batch
++ * boundary when CONFIG SET reduces the size of the I/O thread pool. */
++static _Atomic bool io_thread_stop[IO_THREADS_MAX_NUM];
++#endif
+ static pthread_mutex_t io_threads_mutex[IO_THREADS_MAX_NUM];
+ static int cur_epoll_thread = 0;
+ // Main -> IO: Shared Queue (Single Producer Multi Consumer) where all IO threads pull jobs from
+@@ -299,7 +304,11 @@
+     monotime work_start_time = 0;
+     while (1) {
+         /* Cancellation point so that pthread_cancel() from main thread is honored. */
++#ifdef __ANDROID__
++        if (atomic_load(&io_thread_stop[id])) break;
++#else
+         pthread_testcancel();
++#endif
+         size_t batch_count = 0;
+         monotime prev_work_start_time = work_start_time;
+         work_start_time = getMonotonicUs();
+@@ -375,7 +384,11 @@
+             }
+         }
+     }
++#ifdef __ANDROID__
++    pthread_cleanup_pop(1);
++#else
+     pthread_cleanup_pop(0);
++#endif
+     return NULL;
+ }
+ 
+@@ -397,6 +410,9 @@
+     pthread_attr_t attr;
+     serverInitThreadAttribute(&attr);
+ 
++#ifdef __ANDROID__
++    atomic_store(&io_thread_stop[id], false);
++#endif
+     int err = pthread_create(&tid, &attr, IOThreadMain, (void *)(long)id);
+     pthread_attr_destroy(&attr);
+     if (err) {
+@@ -413,11 +429,16 @@
+     if (tid == pthread_self()) return;
+     if (tid == 0) return;
+ 
++#ifdef __ANDROID__
++    atomic_store(&io_thread_stop[id], true);
++#endif
+     /* Only unlock mutex for inactive threads. Active threads are already unlocked. */
+     if (id >= server.active_io_threads_num) {
+         pthread_mutex_unlock(&io_threads_mutex[id]);
+     }
++#ifndef __ANDROID__
+     pthread_cancel(tid);
++#endif
+ 
+     if ((err = pthread_join(tid, NULL)) != 0) {
+         serverLog(LL_WARNING, "IO thread(tid:%lu) can not be joined: %s", (unsigned long)tid, strerror(err));
+@@ -471,8 +492,10 @@
+         initIOThreads(prev_threads_num);
+     } else {
+         for (int i = prev_threads_num - 1; i >= server.io_threads_num; i--) {
++#ifndef __ANDROID__
+             /* Unblock inactive thread. */
+             pthread_mutex_unlock(&io_threads_mutex[i]);
++#endif
+             shutdownIOThread(i);
+             io_threads[i] = 0;
+         }

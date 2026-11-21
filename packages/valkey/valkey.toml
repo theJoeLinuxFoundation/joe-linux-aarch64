@@ -1,0 +1,23 @@
+[service]
+name = "valkey"
+exec = ["/usr/bin/valkey-server", "/etc/valkey/valkey.conf", "--daemonize", "no"]
+type = "simple"
+enabled = false
+workdir = "/var/lib/valkey"
+
+[service.user]
+user = "valkey"
+group = "valkey"
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[namespace]
+enable = ["mnt"]
+private-tmp = true
+
+[readiness]
+type = "none"
