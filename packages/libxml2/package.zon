@@ -1,0 +1,12 @@
+.{
+    .name = "libxml2",
+    .version = "2.15.4",
+    .release = 1,
+    .description = "XML parser library and tools",
+    .license = "MIT",
+    .sources = .{
+        .{ .url = "https://download.gnome.org/sources/libxml2/2.15/libxml2-2.15.4.tar.xz", .sha256 = "98087fd181d9070724f3fbc65c7377db03038eb92bd882374daff44940138821" },
+    },
+    .depends = .{ "bionic", "icu", "readline" },
+    .build_depends = .{ "meson", "ninja", "pkgconf" },
+}
