@@ -1,0 +1,14 @@
+.{
+    .name = "usbutils",
+    .version = "020",
+    .release = 1,
+    .description = "Programs for listing USB devices (lsusb, usb-devices, usbhid-dump)",
+    .license = "GPL-2.0-only AND GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://kernel.org/pub/linux/utils/usb/usbutils/usbutils-020.tar.xz", .sha256 = "20287d68fcd9ebb50a05ba0645a4af7583bd8dfc7307215ba121e4bc6d057aa1" },
+    },
+    // lsusb takes device names from udev's hwdb; lsusb.py is a Python
+    // script that reads /usr/share/hwdata/usb.ids.
+    .depends = .{ "bionic", "libusb", "eudev", "hwdata", "python" },
+    .build_depends = .{ "meson", "ninja", "pkgconf" },
+}
