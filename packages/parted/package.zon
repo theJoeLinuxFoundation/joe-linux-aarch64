@@ -1,0 +1,15 @@
+.{
+    .name = "parted",
+    .version = "3.8",
+    .release = 1,
+    .description = "Disk partitioning and partition resizing program and library",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/parted/parted-3.8.tar.xz", .sha256 = "a2b7811f47b0ddb1f7b1d0aa456f7c1270da70708ce231c2fe054c7199eafa63" },
+    },
+    // util-linux provides libuuid and libblkid (alignment from the device's
+    // topology), lvm2 libdevmapper; parted's line editing is readline's,
+    // which needs ncurses' tgetent.
+    .build_depends = .{"gettext"},
+    .depends = .{ "bionic", "util-linux", "lvm2", "readline", "ncurses", "libintl" },
+}
