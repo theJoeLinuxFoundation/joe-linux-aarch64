@@ -1,5 +1,11 @@
 # Not in the book (Beyond LFS has dropped its page; blfs-systemd-units still
 # carries the unit): the newest upstream release, built as its README says.
+prepare() {
+    # MSG_FASTOPEN belongs to sys/socket.h. The client probe includes only
+    # netinet/tcp.h, which does not pull in the socket flags on bionic.
+    sed -i '/ac_fn_check_decl .*"MSG_FASTOPEN"/a#include <sys/socket.h>' configure
+}
+
 build() {
     # The trust anchor is kept in /var/lib/unbound, which every deployment
     # shares and unbound may write to (RFC 5011 updates). Built with
