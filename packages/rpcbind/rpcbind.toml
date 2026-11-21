@@ -1,6 +1,6 @@
 [service]
 name = "rpcbind"
-exec = ["/usr/sbin/rpcbind", "-w", "-f", "-s"]
+exec = ["/usr/sbin/rpcbind", "-w", "-f"]
 type = "simple"
 enabled = false
 
