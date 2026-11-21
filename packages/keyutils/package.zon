@@ -1,7 +1,7 @@
 .{
     .name = "keyutils",
     .version = "1.6.3",
-    .release = 2,
+    .release = 3,
     .description = "Tools and library for the kernel key management facility",
     .license = "GPL-2.0-or-later AND LGPL-2.1-or-later",
     .sources = .{
