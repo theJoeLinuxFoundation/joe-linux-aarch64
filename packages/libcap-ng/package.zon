@@ -1,0 +1,14 @@
+.{
+    .name = "libcap-ng",
+    .version = "0.9.6",
+    .release = 1,
+    .description = "Library and tools for examining and dropping POSIX capabilities",
+    .license = "LGPL-2.1-or-later AND GPL-2.0-or-later",
+    .sources = .{
+        // Upstream publishes releases only as tags on GitHub; this is the
+        // archive of the tag.
+        .{ .url = "https://github.com/stevegrubb/libcap-ng/archive/v0.9.6/libcap-ng-0.9.6.tar.gz", .sha256 = "399040138e0ca62fa2bcabd63da9af4431a246ef7a654561a0ca3cb00010a539" },
+    },
+    .depends = .{"bionic"},
+    .build_depends = .{ "autoconf", "automake", "libtool", "pkgconf" },
+}
