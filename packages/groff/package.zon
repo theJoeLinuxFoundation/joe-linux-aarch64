@@ -1,0 +1,12 @@
+.{
+    .name = "groff",
+    .version = "1.24.2",
+    .release = 1,
+    .description = "GNU troff: the text formatter that typesets manual pages",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/groff/groff-1.24.2.tar.gz", .sha256 = "f9c1efd5bebbe37fc6e1063db7473ce8df1e3e0be4ff0f43ce04fce57e9c5dd9" },
+    },
+    .depends = .{ "bionic", "llvm-runtimes", "bash", "sed", "perl" },
+    .build_depends = .{ "bison", "m4" },
+}
