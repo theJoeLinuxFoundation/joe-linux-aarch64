@@ -1,0 +1,19 @@
+[service]
+name = "chronyd"
+exec = ["/usr/sbin/chronyd", "-n"]
+type = "notify"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[namespace]
+enable = ["mnt"]
+private-tmp = true
+protect-system = "full"
+
+[readiness]
+type = "notify"

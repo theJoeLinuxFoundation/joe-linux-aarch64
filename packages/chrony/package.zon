@@ -1,0 +1,12 @@
+.{
+    .name = "chrony",
+    .version = "4.9",
+    .release = 1,
+    .description = "NTP client and server that keeps the clock accurate on intermittent connections",
+    .license = "GPL-2.0-only",
+    .sources = .{
+        .{ .url = "https://chrony-project.org/releases/chrony-4.9.tar.gz", .sha256 = "4924c6f530105bcd5b9e9e33c48a2ae1bfd889222c8480bc41601110efc864d0" },
+    },
+    .depends = .{ "bionic", "libcap", "nettle", "gnutls", "libseccomp" },
+    .build_depends = .{ "pkgconf", "bison" },
+}

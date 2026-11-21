@@ -1,0 +1,19 @@
+[service]
+name = "chrony-wait"
+exec = ["/usr/bin/chronyc", "-h", "127.0.0.1,::1", "waitsync", "180", "0.1", "0.0", "1"]
+type = "oneshot"
+enabled = false
+remain-after-exit = true
+
+[service.user]
+user = "nobody"
+group = "nogroup"
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+requires = ["chronyd"]
+
+[readiness]
+type = "none"
