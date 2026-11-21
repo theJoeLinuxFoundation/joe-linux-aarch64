@@ -1,0 +1,19 @@
+[service]
+name = "rpcbind"
+exec = ["/usr/sbin/rpcbind", "-w", "-f", "-s"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[namespace]
+enable = ["mnt"]
+protect-system = "full"
+
+[readiness]
+type = "exec"
+check-exec = ["/usr/sbin/rpcinfo", "-p", "127.0.0.1"]
