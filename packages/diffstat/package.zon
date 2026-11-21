@@ -1,0 +1,14 @@
+.{
+    .name = "diffstat",
+    .version = "1.69",
+    .release = 1,
+    .description = "Summarizes a patch as a histogram of the lines inserted, deleted and changed in each file",
+    .license = "X11",
+    .sources = .{
+        // Checked against Thomas Dickey's signature (diffstat-1.69.tgz.asc).
+        .{ .url = "https://invisible-island.net/archives/diffstat/diffstat-1.69.tgz", .sha256 = "bb02464072f769dd9832fd999526734c90eb4d66fb56d5351540a750c88a77f6" },
+    },
+    // Compressed patches are read through zcat, bzcat, xz and zstd, whose
+    // paths configure records.
+    .depends = .{ "bionic", "gzip", "bzip2", "xz", "zstd" },
+}
