@@ -1,0 +1,11 @@
+.{
+    .name = "tree",
+    .version = "2.3.2",
+    .release = 1,
+    .description = "Lists the contents of directories as a tree",
+    .license = "GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://gitlab.com/OldManProgrammer/unix-tree/-/archive/2.3.2/unix-tree-2.3.2.tar.bz2", .sha256 = "7e6bd141e89b6d951da8ce1757d16b832fb52ef69a7259a23669981f22a49cbb" },
+    },
+    .depends = .{"bionic"},
+}
