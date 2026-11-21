@@ -1,0 +1,23 @@
+[service]
+name = "iperf3"
+exec = ["/usr/bin/iperf3", "-s"]
+type = "simple"
+enabled = false
+
+[service.user]
+user = "nobody"
+group = "nogroup"
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[namespace]
+enable = ["mnt"]
+private-tmp = true
+protect-system = "strict"
+
+[readiness]
+type = "none"

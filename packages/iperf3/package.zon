@@ -1,0 +1,13 @@
+.{
+    .name = "iperf3",
+    .version = "3.22",
+    .release = 1,
+    .description = "Measures the network throughput between two hosts",
+    .license = "BSD-3-Clause",
+    .sources = .{
+        // Its SHA-256 is the release's iperf-3.22.tar.gz.sha256.
+        .{ .url = "https://github.com/esnet/iperf/releases/download/3.22/iperf-3.22.tar.gz", .sha256 = "1c0d0fb02c52626111d6e132db80edfbf27bbaff8bd9245df2a371dcb0b35a92" },
+    },
+    // OpenSSL for authenticated tests (--rsa-public-key-path and so on).
+    .depends = .{ "bionic", "openssl" },
+}
