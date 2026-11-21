@@ -10,7 +10,9 @@ prepare() {
 
 build() {
     # Every optional library is stated so that the build root cannot change
-    # the result. Expat handles xar, and OpenSSL provides crypto.
+    # the result. xar support uses expat rather than libxml2 (which would pull
+    # ICU into cmake's dependencies); crypto comes from OpenSSL, the Nettle
+    # code being broken with Nettle 4.
     ./configure --prefix=/usr \
         --disable-static \
         --with-zlib \

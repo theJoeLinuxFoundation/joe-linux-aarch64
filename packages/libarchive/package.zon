@@ -1,7 +1,7 @@
 .{
     .name = "libarchive",
     .version = "3.8.11",
-    .release = 1,
+    .release = 2,
     .description = "Library and tools (bsdtar, bsdcpio, bsdcat, bsdunzip) for reading and writing archives",
     .license = "BSD-2-Clause",
     .sources = .{
