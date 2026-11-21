@@ -6,6 +6,11 @@ prepare() {
         /have_android_system=yes/d
         /build_wks_tools=no/d
     }' configure
+    # Bionic rejects printf's %n as a hardening measure. The manual generator
+    # needs the byte offset of the month, which snprintf already returns.
+    sed -i '/snprintf (p, n, "%d %n%s %d",/,+1c\
+      monthoff = snprintf (p, n, "%d ", atoi (opt_date+8));\
+      snprintf (p + monthoff, n - monthoff, "%s %d", month, atoi (opt_date));' doc/mkdefsinc.c
     # Without AM_ICONV's declaration probe, use bionic's char ** input.
     export CPPFLAGS="${CPPFLAGS:+$CPPFLAGS }-DICONV_CONST="
 }
