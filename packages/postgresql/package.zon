@@ -1,0 +1,14 @@
+.{
+    .name = "postgresql",
+    .version = "18.7",
+    .release = 1,
+    .description = "PostgreSQL object-relational database server, client programs and libpq",
+    .license = "PostgreSQL",
+    .sources = .{
+        .{ .url = "https://ftp.postgresql.org/pub/source/v18.7/postgresql-18.7.tar.bz2", .sha256 = "441dfae4280cae3e0425e5f876f80559fb0731c140f1aae22b3e5a54d0411bfd" },
+    },
+    // util-linux: libuuid for contrib/uuid-ossp. tzdata is read at run time
+    // from /usr/share/zoneinfo.
+    .depends = .{ "bionic", "openssl", "icu", "libxml2", "libintl", "linux-pam", "lz4", "zstd", "zlib", "readline", "util-linux", "tzdata" },
+    .build_depends = .{ "tzdata", "pkgconf", "perl", "bison", "flex", "gettext" },
+}

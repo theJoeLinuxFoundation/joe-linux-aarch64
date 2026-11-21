@@ -1,0 +1,24 @@
+# Initialize the cluster as postgres with initdb -D /var/lib/postgres/data before enabling.
+[service]
+name = "postgresql"
+exec = ["/usr/bin/postgres", "-D", "/var/lib/postgres/data"]
+type = "simple"
+enabled = false
+
+[service.user]
+user = "postgres"
+group = "postgres"
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[shutdown]
+stop-signal = "SIGINT"
+stop-timeout = "120s"
+
+[readiness]
+type = "exec"
+check-exec = ["/usr/bin/pg_isready", "-h", "/run/postgresql"]
