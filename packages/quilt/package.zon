@@ -1,0 +1,15 @@
+.{
+    .name = "quilt",
+    .version = "0.69",
+    .release = 1,
+    .description = "Manages a series of patches by keeping track of the changes each patch makes",
+    .license = "GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://download.savannah.nongnu.org/releases/quilt/quilt-0.69.tar.gz", .sha256 = "555ddffde22da3c86d1caf5a9c1fb8a152ac2b84730437bd39cc08849c9f4852" },
+    },
+    // quilt is a set of shell and Perl scripts that run these programs;
+    // configure records where each one is. diffstat summarizes patches.
+    .depends = .{ "bash", "perl", "coreutils", "diffutils", "patch", "findutils", "grep", "sed", "gawk", "util-linux", "diffstat" },
+    // gettext makes the translations.
+    .build_depends = .{ "perl", "util-linux", "diffutils", "patch", "findutils", "gawk", "gettext" },
+}
