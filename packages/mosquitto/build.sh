@@ -33,6 +33,7 @@ build() {
         -D WITH_ADNS=OFF \
         -D USE_LIBWRAP=OFF \
         -D WITH_DLT=OFF \
+        -D WITH_DOCS=OFF \
         -D WITH_TESTS=OFF \
         -D WITH_STATIC_LIBRARIES=OFF
     cmake --build build
@@ -40,6 +41,12 @@ build() {
 
 package() {
     DESTDIR="$DESTDIR" cmake --install build
+    # Install the release manual pages. Regenerating them with xsltproc
+    # requires the DocBook stylesheets, which the build root does not have.
+    local section
+    for section in 1 3 5 7 8; do
+        install -Dm644 -t "$DESTDIR/usr/share/man/man$section" man/*."$section"
+    done
 
     # make install puts upstream's annotated configuration, every option
     # commented out, in /etc/mosquitto as mosquitto.conf.example; the
