@@ -1,0 +1,13 @@
+.{
+    .name = "sysstat",
+    .version = "12.8.0",
+    .release = 1,
+    .description = "System performance tools: sar, iostat, mpstat, pidstat and the sadc collector",
+    .license = "GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "https://sysstat.github.io/sysstat-packages/sysstat-12.8.0.tar.xz", .sha256 = "7fc1a2f7c90a04f7fadf199da2afdd8019e8d187c6ea863b0ff04b74b589c818" },
+    },
+    // xz compresses old daily data files (sa2).
+    .depends = .{ "bionic", "libintl", "xz", "bash", "coreutils" },
+    .build_depends = .{ "gettext", "pkgconf" },
+}

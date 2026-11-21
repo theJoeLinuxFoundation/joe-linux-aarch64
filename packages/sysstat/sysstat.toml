@@ -1,0 +1,15 @@
+[service]
+name = "sysstat"
+exec = ["/usr/lib/sa/collect"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+delay = "60s"
+
+[dependencies]
+after = ["tmpfiles-setup"]
+
+[readiness]
+type = "none"
