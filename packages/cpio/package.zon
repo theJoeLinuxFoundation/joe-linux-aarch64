@@ -1,0 +1,12 @@
+.{
+    .name = "cpio",
+    .version = "2.15",
+    .release = 1,
+    .description = "GNU cpio, copies files into and out of cpio and tar archives",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/cpio/cpio-2.15.tar.bz2", .sha256 = "937610b97c329a1ec9268553fb780037bcfff0dcffe9725ebc4fd9c1aa9075db" },
+    },
+    // tar owns /usr/libexec/rmt, which cpio runs for remote archives.
+    .depends = .{ "bionic", "tar", "libintl" },
+}
