@@ -1,3 +1,8 @@
+prepare() {
+    # libc++'s algorithm and vector headers do not declare qsort, strtol or free.
+    sed -i '/^#include <errno.h>/a #include <stdlib.h>' src/roff/troff/env.cpp
+}
+
 build() {
     # PAGE: the default paper size, which /etc/papersize overrides at run
     # time. A4 is the format of most of the world.
