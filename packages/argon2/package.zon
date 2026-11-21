@@ -1,0 +1,11 @@
+.{
+    .name = "argon2",
+    .version = "20190702",
+    .release = 1,
+    .description = "Reference implementation of the Argon2 password hashing function",
+    .license = "CC0-1.0 OR Apache-2.0",
+    .sources = .{
+        .{ .url = "https://github.com/P-H-C/phc-winner-argon2/archive/20190702/phc-winner-argon2-20190702.tar.gz", .sha256 = "daf972a89577f8772602bf2eb38b6a3dd3d922bf5724d45e7f9589b5e830442c" },
+    },
+    .depends = .{"bionic"},
+}
