@@ -1,0 +1,15 @@
+.{
+    .name = "libbsd",
+    .version = "0.12.2",
+    .release = 1,
+    .description = "Utility functions from BSD systems",
+    .license = "BSD-3-Clause AND BSD-2-Clause AND ISC AND MIT AND Beerware AND LicenseRef-Public-Domain",
+    .sources = .{
+        // Checked against Guillem Jover's signature (libbsd-0.12.2.tar.xz.asc,
+        // key 4F3E74F436050C10F5696574B972BF3EA4AE57A3).
+        .{ .url = "https://libbsd.freedesktop.org/releases/libbsd-0.12.2.tar.xz", .sha256 = "b88cc9163d0c652aaf39a99991d974ddba1c3a9711db8f1b5838af2a14731014" },
+    },
+    // The message digest functions come from libmd.
+    .depends = .{ "bionic", "libmd" },
+    .build_depends = .{ "autoconf", "automake", "libtool" },
+}
