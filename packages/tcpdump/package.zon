@@ -1,0 +1,12 @@
+.{
+    .name = "tcpdump",
+    .version = "4.99.7",
+    .release = 1,
+    .description = "Command-line packet analyzer",
+    .license = "BSD-3-Clause",
+    .sources = .{
+        .{ .url = "https://www.tcpdump.org/release/tcpdump-4.99.7.tar.xz", .sha256 = "39675dfa06fb0e99be8da5d4a1784acbaab58ae0870231d956ff7870cb99eec1" },
+    },
+    .depends = .{ "bionic", "libpcap", "openssl", "libcap-ng" },
+    .build_depends = .{"pkgconf"},
+}
