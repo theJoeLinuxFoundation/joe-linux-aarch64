@@ -1,0 +1,11 @@
+.{
+    .name = "jansson",
+    .version = "2.15.1",
+    .release = 1,
+    .description = "C library for encoding, decoding and manipulating JSON data",
+    .license = "MIT",
+    .sources = .{
+        .{ .url = "https://github.com/akheron/jansson/releases/download/v2.15.1/jansson-2.15.1.tar.bz2", .sha256 = "f9aa4b3ec8496fee69db94f06f3d76fd4a26b012ee9bf1e917078c2cd2841881" },
+    },
+    .depends = .{"bionic"},
+}
