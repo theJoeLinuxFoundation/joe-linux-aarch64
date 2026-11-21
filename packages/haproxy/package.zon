@@ -1,0 +1,17 @@
+.{
+    .name = "haproxy",
+    .version = "3.4.7",
+    .release = 1,
+    .description = "Reliable, high-performance TCP and HTTP load balancer and proxy",
+    .license = "GPL-2.0-or-later AND LGPL-2.1-only",
+    .sources = .{
+        // Its SHA-256 is the .sha256 file published beside the tarball.
+        .{ .url = "https://www.haproxy.org/download/3.4/src/haproxy-3.4.7.tar.gz", .sha256 = "ccfd342f3724c2cd659574044d788f44e20b212467c6bd5edbbfc517a2775dca" },
+    },
+    // OpenSSL (TLS and QUIC), PCRE2, Lua and libcrypt (libxcrypt) are
+    // linked. haproxy-dump-certs and haproxy-reload are bash and sh
+    // scripts that talk to the master socket with socat and check
+    // certificates with openssl.
+    .depends = .{ "bionic", "openssl", "pcre2", "lua", "libxcrypt", "bash", "socat" },
+    .build_depends = .{"pkgconf"},
+}

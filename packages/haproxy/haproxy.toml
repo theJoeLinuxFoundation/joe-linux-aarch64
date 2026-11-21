@@ -1,0 +1,14 @@
+[service]
+name = "haproxy"
+exec = ["/usr/sbin/haproxy", "-Ws", "-f", "/etc/haproxy/haproxy.cfg", "-f", "/etc/haproxy/conf.d", "-p", "/run/haproxy.pid", "-S", "/run/haproxy-master.sock"]
+type = "notify"
+enabled = false
+
+[restart]
+policy = "permanent"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "notify"
