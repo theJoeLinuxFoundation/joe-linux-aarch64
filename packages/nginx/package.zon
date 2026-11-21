@@ -1,0 +1,16 @@
+.{
+    .name = "nginx",
+    .version = "1.30.7",
+    .release = 1,
+    .description = "HTTP server, reverse proxy, and mail and TCP/UDP proxy server",
+    .license = "BSD-2-Clause",
+    .sources = .{
+        .{ .url = "https://nginx.org/download/nginx-1.30.7.tar.gz", .sha256 = "2565b5c837050e958f70fb0f73c48e2bca4542ad349fd356f46fb0c72610bc6e" },
+    },
+    .depends = .{ "bionic", "pcre2", "zlib", "openssl", "libxcrypt" },
+    // The root master opens the sockets, logs and cache directories, signals
+    // its workers, and starts them as nginx. PID and lock files are on /run.
+    .operations = .{
+        .{ .programs = .{"usr/sbin/nginx"}, .allow = .{ "net", "root-ipc", "cap:net_bind_service", "cap:chown", "cap:dac_override", "cap:dac_read_search", "cap:kill", "cap:setgid", "cap:setuid", "write:/var/log/nginx", "write:/var/cache/nginx" } },
+    },
+}

@@ -1,0 +1,21 @@
+[service]
+name = "nginx"
+exec = ["/usr/sbin/nginx", "-g", "daemon off;"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[namespace]
+enable = ["mnt"]
+private-tmp = true
+
+[shutdown]
+stop-signal = "SIGQUIT"
+
+[readiness]
+type = "none"
