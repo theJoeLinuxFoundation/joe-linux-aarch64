@@ -1,7 +1,11 @@
 prepare() {
-    # joe's bionic has working ttyname and iconv. GnuPG's Android OS case
-    # assumes a stub ttyname and UTF-8-only terminals.
-    sed -i '/^    \*-linux-android\*)$/,/^        ;;$/d' configure
+    # Joe has a working ttyname and supports the WKS tools. Keep the Android
+    # configure exemption for iconv: bionic handles Unicode but not the EUC-JP
+    # encoding required by the configure probe. GnuPG handles Latin-1 itself.
+    sed -i '/^    \*-linux-android\*)$/,/^        ;;$/ {
+        /have_android_system=yes/d
+        /build_wks_tools=no/d
+    }' configure
 }
 
 build() {
