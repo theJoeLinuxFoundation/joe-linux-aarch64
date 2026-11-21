@@ -1,0 +1,14 @@
+.{
+    .name = "texinfo",
+    .version = "7.3",
+    .release = 1,
+    .description = "GNU Texinfo: makeinfo/texi2any, the info reader and install-info",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://ftpmirror.gnu.org/texinfo/texinfo-7.3.tar.xz", .sha256 = "51f74eb0f51cfa9873b85264dfdd5d46e8957ec95b88f0fb762f63d9e164c72e" },
+    },
+    // texi2any is Perl with XS modules and a C library (libtexinfo) that use
+    // libunistring, which configure uses whenever it finds it; info uses
+    // ncurses.
+    .depends = .{ "bionic", "perl", "ncurses", "libunistring", "libintl" },
+}
