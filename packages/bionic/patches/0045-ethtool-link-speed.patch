@@ -1,0 +1,22 @@
+joe Linux: retain the Linux UAPI link-speed accessors in the sanitized
+ethtool header. Chrony reads the interface speed for hardware timestamps.
+
+diff --git a/libc/kernel/uapi/linux/ethtool.h b/libc/kernel/uapi/linux/ethtool.h
+index 3625797..f54e7b0 100644
+--- a/libc/kernel/uapi/linux/ethtool.h
++++ b/libc/kernel/uapi/linux/ethtool.h
+@@ -29,6 +29,14 @@ struct ethtool_cmd {
+   __u32 lp_advertising;
+   __u32 reserved[2];
+ };
++/* Keep the public Linux UAPI accessors for the split link speed. */
++static __inline__ void ethtool_cmd_speed_set(struct ethtool_cmd* cmd, __u32 speed) {
++  cmd->speed = (__u16)speed;
++  cmd->speed_hi = (__u16)(speed >> 16);
++}
++static __inline__ __u32 ethtool_cmd_speed(const struct ethtool_cmd* cmd) {
++  return ((__u32)cmd->speed_hi << 16) | cmd->speed;
++}
+ #define ETH_MDIO_SUPPORTS_C22 1
+ #define ETH_MDIO_SUPPORTS_C45 2
+ #define ETHTOOL_FWVERS_LEN 32
