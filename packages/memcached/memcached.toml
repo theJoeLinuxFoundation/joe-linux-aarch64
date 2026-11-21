@@ -1,0 +1,24 @@
+[service]
+name = "memcached"
+exec = ["/bin/sh", "-ec", "set -f; exec /usr/bin/memcached -p \"$PORT\" -m \"$CACHESIZE\" -c \"$MAXCONN\" $OPTIONS"]
+environment-file = "/etc/memcached.conf"
+type = "simple"
+enabled = false
+
+[service.user]
+user = "memcached"
+group = "memcached"
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[namespace]
+enable = ["mnt"]
+private-tmp = true
+protect-system = "full"
+
+[readiness]
+type = "none"
