@@ -2,6 +2,8 @@
 # The systemd-vconsole-setup service that runs them on joe Linux is absent here.
 
 prepare() {
+    # With _GNU_SOURCE bionic provides the char * form of strerror_r too.
+    sed -i 's/defined(__GLIBC__) && defined(_GNU_SOURCE)/(defined(__GLIBC__) || defined(__ANDROID__)) \&\& defined(_GNU_SOURCE)/' src/libkbdfile/kbdfile.c
     # The Backspace and Delete keys behave consistently in every keymap.
     patch -Np1 -i "$SOURCES/kbd-2.10.0-backspace-1.patch"
     # resizecons does not work with current kernels.
