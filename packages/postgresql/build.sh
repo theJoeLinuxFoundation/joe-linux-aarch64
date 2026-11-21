@@ -1,4 +1,10 @@
 prepare() {
+    # msgfmt on bionic accepts UTF-8. Preserve pg_config's Norwegian catalog,
+    # the one Latin-1 catalog in this release.
+    local po=src/bin/pg_config/po/nb.po
+    uconv -f ISO-8859-1 -t UTF-8 "$po" | sed 's/charset=iso-8859-1/charset=UTF-8/' > "$po.utf8"
+    mv "$po.utf8" "$po"
+
     # The book's change: the server's socket goes to /run/postgresql.
     sed -e '/DEFAULT_PGSOCKET_DIR/s@/tmp@/run/postgresql@' \
         -i src/include/pg_config_manual.h
