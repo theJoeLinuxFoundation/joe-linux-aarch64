@@ -1,0 +1,16 @@
+.{
+    .name = "lvm2",
+    .version = "2.03.44",
+    .release = 1,
+    .description = "Device-mapper library, dmsetup and udev rules from LVM2 (the LVM tools are not built)",
+    .license = "GPL-2.0-only AND LGPL-2.1-only",
+    .sources = .{
+        .{ .url = "https://sourceware.org/ftp/lvm2/LVM2.2.03.44.tgz", .sha256 = "42f829927d2d459f5733fcdb38a5bf2455a8b84072193092450a9c69d6596eca" },
+    },
+    .depends = .{ "bionic", "eudev", "util-linux" },
+    .build_depends = .{"pkgconf"},
+    .operations = .{
+        // Device-mapper tables, from udev rules and the administrator.
+        .{ .programs = .{"usr/sbin/dmsetup"}, .allow = .{ "cap:sys_admin", "cap:mknod", "write:/dev" } },
+    },
+}
