@@ -35,7 +35,14 @@ cross=$root/usr/lib/joe-cross
 host=aarch64-unknown-linux-android
 jobs=$(nproc)
 if [[ $JOE_HOST_ARCH == "$JOE_ARCH" ]]; then
-    native_flags=("-Wl,--dynamic-linker=$root$JOE_INTERP" "-Wl,-rpath,$root/usr/lib")
+    # bionic's libc.so needs libdl.so, and a run path serves only the file
+    # that carries it, so libc.so's request goes to this machine's /usr/lib.
+    # clang links every Android program against libdl.so, which the loader
+    # then finds through the program's run path first; but a package linking
+    # with --as-needed (coreutils does) drops it, and its programs cannot
+    # start. Keeping libdl.so whatever comes after makes them all start.
+    native_flags=("-Wl,--dynamic-linker=$root$JOE_INTERP" "-Wl,-rpath,$root/usr/lib"
+        "-Wl,--push-state,--no-as-needed,-ldl,--pop-state")
     export LDFLAGS="${native_flags[*]}"
 else
     export QEMU_LD_PREFIX=$root
@@ -156,12 +163,17 @@ cross_step ninja ninja_
 enter=$top/bootstrap/enter.sh
 
 # What packages/.build/driver.sh gives every package build: configure
-# scripts are told the system is Linux, not Android (see the driver).
+# scripts are told the system is aarch64-unknown-linux-android, what
+# config.guess says of bionic, so that gnulib compiles the workarounds its
+# code calls under __ANDROID__ (told linux-gnu, gettext's link fails on
+# setlocale_fixed_null). The target is named too (see the driver). These
+# are temporary tools: libtool's Android packaging, which the driver turns
+# back for packages, does not matter here.
 mkdir -p "$root/usr/share/joe"
 cat > "$root/usr/share/joe/config.site" <<'EOT'
-ac_cv_build=${ac_cv_build-aarch64-unknown-linux-gnu}
-ac_cv_host=${ac_cv_host-aarch64-unknown-linux-gnu}
-ac_cv_target=${ac_cv_target-aarch64-unknown-linux-gnu}
+ac_cv_build=${ac_cv_build-aarch64-unknown-linux-android}
+ac_cv_host=${ac_cv_host-aarch64-unknown-linux-android}
+ac_cv_target=${ac_cv_target-aarch64-unknown-linux-android}
 EOT
 
 # chroot NAME TARBALL COMMANDS: run COMMANDS in the build root, in the
@@ -283,9 +295,12 @@ chroot_step texinfo texinfo-7.3.tar.xz '
 
 chroot_step util-linux util-linux-2.42.4.tar.xz '
     mkdir -p /var/lib/hwclock
+    # No last and lslogins, as in packages/util-linux: they read login
+    # records, which bionic writes (for agetty) but cannot read back.
     ./configure --libdir=/usr/lib --runstatedir=/run --disable-chfn-chsh --disable-login \
         --disable-nologin --disable-su --disable-setpriv --disable-runuser \
         --disable-pylibmount --disable-static --disable-liblastlog2 --without-python \
+        --disable-last --disable-lslogins \
         --disable-makeinstall-chown --disable-makeinstall-setuid \
         ADJTIME_PATH=/var/lib/hwclock/adjtime
     make
