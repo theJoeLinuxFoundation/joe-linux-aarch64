@@ -1,0 +1,15 @@
+[service]
+name = "logrotate"
+exec = ["/usr/lib/logrotate/daily"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+delay = "60s"
+
+[dependencies]
+after = ["tmpfiles-setup"]
+
+[readiness]
+type = "none"
