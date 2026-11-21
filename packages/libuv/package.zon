@@ -1,7 +1,7 @@
 .{
     .name = "libuv",
     .version = "1.53.0",
-    .release = 1,
+    .release = 2,
     .description = "Multi-platform asynchronous I/O library",
     .license = "MIT",
     .sources = .{
