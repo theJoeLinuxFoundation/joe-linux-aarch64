@@ -6,6 +6,11 @@
 # works only on a kernel built with NETFILTER_XTABLES_LEGACY, which joe's
 # is not. The book's example firewall script and its unit are a site's
 # policy, not part of the package, and are left out.
+prepare() {
+    # The cgroup match's private option ID collides with the open flag.
+    sed -i 's/\<O_PATH\>/O_CGROUP_PATH/g' extensions/libxt_cgroup.c
+}
+
 build() {
     # nfnl_osf and the connlabel match need libnfnetlink and
     # libnetfilter_conntrack. The BPF compiler and nfsynproxy (libpcap)
