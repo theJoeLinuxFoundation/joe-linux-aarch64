@@ -1,0 +1,19 @@
+# Reads /etc/wireguard/wg0.conf. Use a separate service per interface.
+[service]
+name = "wg-quick-wg0"
+exec = ["/usr/bin/wg-quick", "up", "wg0"]
+type = "oneshot"
+enabled = false
+remain-after-exit = true
+
+[restart]
+policy = "temporary"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[shutdown]
+stop-exec = ["/usr/bin/wg-quick", "down", "wg0"]
+
+[readiness]
+type = "none"

@@ -1,0 +1,13 @@
+.{
+    .name = "wireguard-tools",
+    .version = "1.0.20260223",
+    .release = 1,
+    .description = "Tools for configuring WireGuard tunnels: wg and wg-quick",
+    .license = "GPL-2.0-only",
+    .sources = .{
+        .{ .url = "https://git.zx2c4.com/wireguard-tools/snapshot/wireguard-tools-1.0.20260223.tar.xz", .sha256 = "af459827b80bfd31b83b08077f4b5843acb7d18ad9a33a2ef532d3090f291fbf" },
+    },
+    // wg-quick is a bash script that runs ip (iproute2), nft for the rules
+    // of a full tunnel, and optionally resolvconf for DNS. No resolvconf is packaged.
+    .depends = .{ "bionic", "bash", "iproute2", "nftables" },
+}
