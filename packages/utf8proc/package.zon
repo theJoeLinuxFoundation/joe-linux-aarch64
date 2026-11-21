@@ -1,0 +1,13 @@
+.{
+    .name = "utf8proc",
+    .version = "2.12.0",
+    .release = 1,
+    .description = "Small C library for Unicode normalisation, case folding and character properties of UTF-8 text",
+    .license = "MIT AND Unicode-3.0",
+    .sources = .{
+        // The release asset's SHA-256 as GitHub lists it.
+        .{ .url = "https://github.com/JuliaStrings/utf8proc/releases/download/v2.12.0/utf8proc-2.12.0.tar.gz", .sha256 = "a393fbef160835fb315bc3e91ba8d86f7a73a7cec9e6198b6c60b848b498bfeb" },
+    },
+    .depends = .{"bionic"},
+    .build_depends = .{ "cmake", "ninja" },
+}
