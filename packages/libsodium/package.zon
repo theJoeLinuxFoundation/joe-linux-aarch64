@@ -1,0 +1,11 @@
+.{
+    .name = "libsodium",
+    .version = "1.0.22",
+    .release = 1,
+    .description = "Modern, easy-to-use library for encryption, decryption, signatures and password hashing",
+    .license = "ISC",
+    .sources = .{
+        .{ .url = "https://download.libsodium.org/libsodium/releases/libsodium-1.0.22.tar.gz", .sha256 = "adbdd8f16149e81ac6078a03aca6fc03b592b89ef7b5ed83841c086191be3349" },
+    },
+    .depends = .{"bionic"},
+}
