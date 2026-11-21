@@ -1,0 +1,14 @@
+[service]
+name = "smartd"
+exec = ["/usr/sbin/smartd", "-n"]
+type = "simple"
+enabled = false
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[readiness]
+type = "none"
