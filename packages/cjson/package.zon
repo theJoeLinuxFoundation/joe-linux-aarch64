@@ -1,0 +1,13 @@
+.{
+    .name = "cjson",
+    .version = "1.7.19",
+    .release = 1,
+    .description = "Ultralightweight JSON parser in ANSI C (libcjson and libcjson_utils)",
+    .license = "MIT",
+    .sources = .{
+        // The release tag's archive; upstream publishes no checksum for it.
+        .{ .url = "https://github.com/DaveGamble/cJSON/archive/v1.7.19/cJSON-1.7.19.tar.gz", .sha256 = "7fa616e3046edfa7a28a32d5f9eacfd23f92900fe1f8ccd988c1662f30454562" },
+    },
+    .depends = .{"bionic"},
+    .build_depends = .{ "cmake", "ninja" },
+}
