@@ -1,0 +1,15 @@
+.{
+    .name = "re2c",
+    .version = "4.6",
+    .release = 1,
+    .description = "Lexer generator for C, C++, Go, Rust and other languages",
+    .license = "LicenseRef-Public-Domain",
+    .sources = .{
+        // Checked against the SHA-256 digest GitHub publishes for the
+        // release asset.
+        .{ .url = "https://github.com/skvadrik/re2c/releases/download/4.6/re2c-4.6.tar.xz", .sha256 = "75bf2696445e831d0d44e0d9f2909eeffc18c09757f222b2fb025f7e59fe130b" },
+    },
+    .depends = .{ "bionic", "llvm-runtimes" },
+    // configure insists on Python, which runs the build-time scripts.
+    .build_depends = .{"python"},
+}
