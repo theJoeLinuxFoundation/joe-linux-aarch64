@@ -1,4 +1,7 @@
 prepare() {
+    # poll.h already declares the poll interfaces. bits/poll.h is private
+    # to glibc and does not exist in bionic.
+    sed -i '/#include <bits\/poll.h>/d' src/rpcb_svc_com.c
     # /etc/services (iana-etc) names port 111 sunrpc, not rpcbind.
     sed -i "/servname/s:rpcbind:sunrpc:" src/rpcbind.c
 }
