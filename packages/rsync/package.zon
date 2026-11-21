@@ -1,0 +1,11 @@
+.{
+    .name = "rsync",
+    .version = "3.5.2",
+    .release = 1,
+    .description = "Fast incremental file transfer, locally and over the network",
+    .license = "GPL-3.0-or-later",
+    .sources = .{
+        .{ .url = "https://www.samba.org/ftp/rsync/src/rsync-3.5.2.tar.gz", .sha256 = "a10d591825251e070f74c98df3daad195def4ed81b4a2de16169026aea33f6c8" },
+    },
+    .depends = .{ "bionic", "popt", "zlib", "zstd", "lz4", "xxhash", "openssl", "acl", "libidn2" },
+}
