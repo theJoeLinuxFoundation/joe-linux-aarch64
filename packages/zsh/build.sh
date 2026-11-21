@@ -4,6 +4,9 @@
 # from joe Linux's /usr/lib/joe/profile. The book's addition to /etc/shells
 # is not made here: that file is joe-filesystem's.
 prepare() {
+    # Keep config.status from reading the silent recursive make command as
+    # an @file@ substitution. Without it, the module objects are never built.
+    sed -i 's/^\(\s*\)@$(MAKE) -f Makemod/\1$(MAKE) -f Makemod/' Src/Makefile.in
     sed -e 's|/etc/z|/etc/zsh/z|g' -i Doc/*.*
 }
 
