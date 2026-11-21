@@ -1,0 +1,37 @@
+joe Linux: expose the existing BSD signal-mask functions in signal.h. Dash
+finds sigsetmask at link time and needs its prototype when clearing the mask.
+
+diff --git a/libc/bionic/signal.cpp b/libc/bionic/signal.cpp
+index 4cd3903..e319cd8 100644
+--- a/libc/bionic/signal.cpp
++++ b/libc/bionic/signal.cpp
+@@ -82,14 +82,12 @@ union BsdSigSet {
+   sigset64_t set;
+ };
+ 
+-// This isn't in our header files, but is exposed on all architectures except riscv64.
+ extern "C" int sigblock(int mask) {
+   BsdSigSet in{.mask = mask}, out;
+   if (sigprocmask64(SIG_BLOCK, &in.set, &out.set) == -1) return -1;
+   return out.mask;
+ }
+ 
+-// This isn't in our header files, but is exposed on all architectures except riscv64.
+ extern "C" int sigsetmask(int mask) {
+   BsdSigSet in{.mask = mask}, out;
+   if (sigprocmask64(SIG_SETMASK, &in.set, &out.set) == -1) return -1;
+diff --git a/libc/include/signal.h b/libc/include/signal.h
+index 7290b15..932b531 100644
+--- a/libc/include/signal.h
++++ b/libc/include/signal.h
+@@ -105,6 +105,10 @@ int sigpending(sigset_t* _Nonnull __set);
+ int sigpending64(sigset64_t* _Nonnull __set) __INTRODUCED_IN(28);
+ #endif
+ 
++/* Legacy BSD integer signal masks, used by dash. */
++int sigblock(int __mask);
++int sigsetmask(int __mask);
++
+ int sigprocmask(int __how, const sigset_t* _Nullable __new_set, sigset_t* _Nullable __old_set);
+ 
+ #if __BIONIC_AVAILABILITY_GUARD(28)
