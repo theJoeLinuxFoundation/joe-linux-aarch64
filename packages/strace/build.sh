@@ -11,7 +11,9 @@ build() {
     # are not packaged on ARM. There is no 32-bit toolchain, so no decoding
     # of 32-bit processes (mpers). No SELinux. The terminal width comes from
     # ncurses' terminfo, which configure picks up without a switch.
+    # Bionic's netinet/in.h gets its address types from its own kernel headers.
     ./configure --prefix=/usr \
+        --disable-bundled \
         --enable-stacktrace=no \
         --without-libdw \
         --without-libunwind \
