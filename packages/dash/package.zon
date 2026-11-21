@@ -1,0 +1,11 @@
+.{
+    .name = "dash",
+    .version = "0.5.13.6",
+    .release = 1,
+    .description = "Debian Almquist shell, a small and fast POSIX shell",
+    .license = "BSD-3-Clause AND GPL-2.0-or-later",
+    .sources = .{
+        .{ .url = "http://gondor.apana.org.au/~herbert/dash/files/dash-0.5.13.6.tar.gz", .sha256 = "26aac476f476cef391c600cb064417d82a5465d8fc7c4fd56158c276e86538c1" },
+    },
+    .depends = .{"bionic"},
+}
