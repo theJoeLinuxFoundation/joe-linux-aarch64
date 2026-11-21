@@ -1,0 +1,49 @@
+joe Linux: provide getdtablesize for lsof on LP64. Preserve the existing
+32-bit implementation and symbol version. Clamp limits too large for an int.
+
+diff --git a/libc/bionic/sysconf.cpp b/libc/bionic/sysconf.cpp
+index 03822ed..f5bd15f 100644
+--- a/libc/bionic/sysconf.cpp
++++ b/libc/bionic/sysconf.cpp
+@@ -148,6 +148,15 @@ static long __sysconf_rlimit(int resource) {
+   return rl.rlim_cur;
+ }
+ 
++#if defined(__LP64__)
++// The 32-bit compatibility implementation lives in ndk_cruft.cpp.
++int getdtablesize() {
++  struct rlimit limit;
++  if (getrlimit(RLIMIT_NOFILE, &limit) == -1) return -1;
++  return limit.rlim_cur > INT_MAX ? INT_MAX : static_cast<int>(limit.rlim_cur);
++}
++#endif
++
+ long sysconf(int name) {
+   switch (name) {
+     //
+diff --git a/libc/include/unistd.h b/libc/include/unistd.h
+index 716b185..39f086c 100644
+--- a/libc/include/unistd.h
++++ b/libc/include/unistd.h
+@@ -467,6 +467,9 @@ int vhangup(void);
+  */
+ int getpagesize(void) __attribute_const__;
+ 
++/** Returns the soft open-file limit as an int. */
++int getdtablesize(void);
++
+ /**
+  * [getusershell(3)](https://man7.org/linux/man-pages/man3/getusershell.3.html)
+  * returns the next login shell listed in /etc/shells, or NULL after the last
+diff --git a/libc/libc.map.txt b/libc/libc.map.txt
+index ed0cafe..4a8febb 100644
+--- a/libc/libc.map.txt
++++ b/libc/libc.map.txt
+@@ -1825,6 +1825,7 @@ LIBC_PRIVATE {
+ # under their own names too (bionic/joe_renamed.cpp).
+ LIBC_JOE { # introduced=37
+   global:
++    getdtablesize; # arm64 riscv64 x86_64
+     endutxent;
+     getutxent;
+     getutxid;
