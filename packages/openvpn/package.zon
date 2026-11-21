@@ -1,0 +1,14 @@
+.{
+    .name = "openvpn",
+    .version = "2.7.9",
+    .release = 1,
+    .description = "SSL/TLS VPN daemon and client",
+    .license = "GPL-2.0-only WITH openvpn-openssl-exception",
+    .sources = .{
+        .{ .url = "https://github.com/OpenVPN/openvpn/releases/download/v2.7.9/openvpn-2.7.9.tar.gz", .sha256 = "c42a6ed892ddfe2d6e3317a5040f19bec5827564affb2fe3f2b3904a94daacb1" },
+    },
+    // libnl: data channel offload (the ovpn kernel module) over generic
+    // netlink. libcap-ng keeps CAP_NET_ADMIN after dropping root.
+    .depends = .{ "bionic", "openssl", "lzo", "lz4", "libcap-ng", "libnl", "linux-pam" },
+    .build_depends = .{"pkgconf"},
+}

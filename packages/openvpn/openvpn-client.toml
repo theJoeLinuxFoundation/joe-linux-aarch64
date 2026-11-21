@@ -1,0 +1,20 @@
+[service]
+name = "openvpn-client"
+exec = ["/usr/sbin/openvpn", "--suppress-timestamps", "--nobind", "--config", "client.conf"]
+type = "simple"
+enabled = false
+workdir = "/etc/openvpn/client"
+
+[restart]
+policy = "transient"
+
+[dependencies]
+after = ["tmpfiles-setup", "loopback", "dhcpcd"]
+
+[namespace]
+enable = ["mnt"]
+private-tmp = true
+protect-system = "full"
+
+[readiness]
+type = "none"
