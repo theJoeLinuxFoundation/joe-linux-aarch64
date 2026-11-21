@@ -1,0 +1,12 @@
+.{
+    .name = "icu",
+    .version = "79.1",
+    .release = 1,
+    .description = "International Components for Unicode: Unicode and globalization libraries",
+    .license = "Unicode-3.0",
+    .sources = .{
+        .{ .url = "https://github.com/unicode-org/icu/releases/download/release-79.1/icu4c-79.1-sources.tgz", .sha256 = "06fa63ecb521048f8082f12ad988f6b678d90cbd88aafce24cbc94902b191d99" },
+    },
+    .depends = .{ "bionic", "llvm-runtimes" },
+    .build_depends = .{"python"},
+}
