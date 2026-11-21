@@ -1,7 +1,7 @@
 .{
     .name = "fping",
     .version = "5.5",
-    .release = 1,
+    .release = 2,
     .description = "Sends ICMP echo requests to many hosts at once",
     .license = "BSD-4.3TAHOE",
     .sources = .{
@@ -13,5 +13,5 @@
     // ("ping") sockets if net.ipv4.ping_group_range includes the user’s group.
     // On joe Linux systemd sets this range for all groups. On ARM the
     // administrator can set it in sysctl.d. Root uses raw sockets.
-    .depends = .{"bionic"},
+    .depends = .{ "bionic", "iana-etc" },
 }
