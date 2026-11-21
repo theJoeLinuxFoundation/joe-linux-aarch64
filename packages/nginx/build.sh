@@ -1,6 +1,13 @@
 # Not in the book: the newest stable release (the even-numbered branch),
 # configured as nginx.org's own packages are (nginx -V of those packages,
 # and https://nginx.org/en/docs/configure.html).
+prepare() {
+    # Bionic's epoll masks contain casts, which #if cannot evaluate.
+    # Set the kernel event mask in each branch; clang folds the constants.
+    sed -i '/^#if (NGX_READ_EVENT != EPOLLIN|EPOLLRDHUP)/,/^#endif/ { /^#/d; }
+            /^#if (NGX_WRITE_EVENT != EPOLLOUT)/,/^#endif/ { /^#/d; }' src/event/modules/ngx_epoll_module.c
+}
+
 build() {
     # The paths of nginx.org's packages, except the prefix: it is
     # /usr/share/nginx, so that the default page and every relative path in
