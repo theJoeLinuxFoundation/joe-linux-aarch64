@@ -505,7 +505,7 @@ pub fn apply(gpa: Allocator, arena: Allocator, io: Io, root: Io.Dir, plan: Plan,
     // describing the previous state.
     for (plan.remove) |name| try db.remove(arena, io, root, name);
     for (incoming) |m| try db.put(arena, io, root, m);
-    _ = linux.syncfs(root.handle);
+    try std.posix.syncfs(root.handle);
 
     return .{
         .changes = changes.items,

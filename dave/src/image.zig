@@ -532,15 +532,11 @@ pub const Builder = struct {
         try cwd.createDirPath(io, try b.join(&.{ esp_dir, "EFI/BOOT" }));
         var esp = try cwd.openDir(io, esp_dir, .{ .iterate = true });
         defer esp.close(io);
-        try tree.copyFile(boot.loader_source, esp, boot.fallback_loader, io, .{});
-        try esp.createDirPath(io, "loader/entries");
-        try esp.writeFile(io, .{ .sub_path = "loader/loader.conf", .data = iso.loader_conf });
-        try esp.writeFile(io, .{ .sub_path = "loader/entries.srel", .data = provision.entries_srel });
+        try boot.copyFile(io, esp, boot.fallback_loader, tree, boot.loader_source);
+        try boot.writeFile(io, esp, "loader/loader.conf", iso.loader_conf);
+        try boot.writeFile(io, esp, "loader/entries.srel", provision.entries_srel);
         const kernel_path = try boot.installKernel(arena, io, esp, tree, kernel);
-        const digest = try archive.hashFile(io, cwd, initrd_img);
-        const initrd_path = try std.fmt.allocPrint(arena, "/joe/initrd/{s}.img", .{digest[0..16]});
-        try esp.createDirPath(io, "joe/initrd");
-        try cwd.copyFile(initrd_img, esp, initrd_path[1..], io, .{});
+        const initrd_path = try boot.installInitrd(arena, io, esp, cwd, initrd_img);
 
         var cmdline: std.ArrayList(u8) = .empty;
         try cmdline.appendSlice(arena, iso.live_cmdline);
@@ -553,7 +549,7 @@ pub const Builder = struct {
         const name = iso.prettyName(tree.readFileAlloc(io, "usr/lib/os-release", arena, .limited(64 * 1024)) catch "");
         for (iso.entries) |e| {
             const text = try iso.entryText(arena, e, name, kernel_path, initrd_path, cmdline.items);
-            try esp.writeFile(io, .{ .sub_path = try b.join(&.{ "loader/entries", e.file }), .data = text });
+            try boot.writeFile(io, esp, try b.join(&.{ "loader/entries", e.file }), text);
         }
 
         var content: u64 = 0;

@@ -254,13 +254,11 @@ pub const EspSource = struct {
 /// of a disk being installed). boot.updateLoader only ever replaces a loader
 /// that is already there, so the first copies are placed here.
 pub fn writeEsp(arena: Allocator, io: Io, esp: Io.Dir, source: EspSource, options: []const u8) !void {
-    for (boot.loader_targets) |target| {
-        try esp.createDirPath(io, std.fs.path.dirname(target).?);
-        try source.root.copyFile(source.loader_path, esp, target, io, .{});
-    }
-    try esp.createDirPath(io, "loader");
-    try esp.writeFile(io, .{ .sub_path = "loader/loader.conf", .data = loader_conf });
     try writeEntries(arena, io, esp, source, options);
+    for (boot.loader_targets) |target| {
+        try boot.copyFile(io, esp, target, source.root, source.loader_path);
+    }
+    try boot.writeFile(io, esp, "loader/loader.conf", loader_conf);
 }
 
 /// Writes a new installation's boot files beside another system: on the
@@ -270,28 +268,25 @@ pub fn writeEsp(arena: Allocator, io: Io, esp: Io.Dir, source: EspSource, option
 /// system put on the ESP is replaced: the firmware's fallback path, another
 /// boot loader, another systemd-boot's settings.
 pub fn writeBeside(arena: Allocator, io: Io, esp: Io.Dir, xbootldr: Io.Dir, source: EspSource, options: []const u8) !void {
+    try writeEntries(arena, io, xbootldr, source, options);
     for (boot.loader_targets) |target| {
         if (esp.statFile(io, target, .{})) |_| continue else |err| switch (err) {
             error.FileNotFound => {},
             else => return err,
         }
-        try esp.createDirPath(io, std.fs.path.dirname(target).?);
-        try source.root.copyFile(source.loader_path, esp, target, io, .{});
+        try boot.copyFile(io, esp, target, source.root, source.loader_path);
     }
     _ = try boot.updateLoader(arena, io, esp, source.root);
-    try esp.createDirPath(io, "loader");
     if (esp.statFile(io, "loader/loader.conf", .{})) |_| {} else |err| switch (err) {
-        error.FileNotFound => try esp.writeFile(io, .{ .sub_path = "loader/loader.conf", .data = beside_loader_conf }),
+        error.FileNotFound => try boot.writeFile(io, esp, "loader/loader.conf", beside_loader_conf),
         else => return err,
     }
-    try writeEntries(arena, io, xbootldr, source, options);
 }
 
 /// The kernel, microcode and first boot entry, on the partition systemd-boot
 /// reads entries from.
 fn writeEntries(arena: Allocator, io: Io, dir: Io.Dir, source: EspSource, options: []const u8) !void {
-    try dir.createDirPath(io, "loader");
-    try dir.writeFile(io, .{ .sub_path = "loader/entries.srel", .data = entries_srel });
+    try boot.writeFile(io, dir, "loader/entries.srel", entries_srel);
     const kernel = try boot.installKernel(arena, io, dir, source.root, source.kernel_path);
     // The processor's microcode, if the root has it, is the only initrd.
     var initrds: []const []const u8 = &.{};

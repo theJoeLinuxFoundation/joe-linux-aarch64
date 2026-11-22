@@ -313,6 +313,12 @@ pub const System = struct {
         return outcome;
     }
 
+    fn discardDeployment(s: *System, parent: Io.Dir, name: []const u8, id: u32) void {
+        // If the ESP cannot confirm the removal, its entry may still boot.
+        boot.remove(s.arena, s.io, s.bootDir(), id) catch return;
+        btrfs.removeSubvolume(s.io, parent, name) catch {};
+    }
+
     fn createDeployment(s: *System, id: u32, staged: Staged) !void {
         try s.refuseNested();
         var parent = try s.deployParent();
@@ -320,23 +326,17 @@ pub const System = struct {
         const name = try std.fmt.allocPrint(s.arena, "{d}", .{id});
 
         try btrfs.snapshot(s.root, parent, name);
-        // From here on, any failure must leave no trace: no subvolume, no entry.
-        errdefer {
-            boot.remove(s.arena, s.io, s.bootDir(), id) catch {};
-            btrfs.removeSubvolume(s.io, parent, name) catch {};
-        }
+        errdefer s.discardDeployment(parent, name, id);
         var target = try parent.openDir(s.io, name, .{ .iterate = true });
         defer target.close(s.io);
         _ = try s.applyTo(target, name, staged);
 
         const kernel = try boot.installKernel(s.arena, s.io, s.bootDir(), target, try s.findKernel(target));
         const initrds = try s.installInitrds(target);
-        // Best effort: the loader already on the ESP starts this deployment
-        // too, so failing to bring a newer one must not cost the upgrade.
-        _ = boot.updateLoader(s.arena, s.io, s.esp, target) catch false;
+        _ = try boot.updateLoader(s.arena, s.io, s.esp, target);
         const entries = try boot.list(s.arena, s.io, s.bootDir());
         const current = try s.currentEntry(entries);
-        _ = std.os.linux.syncfs(target.handle);
+        try std.posix.syncfs(target.handle);
         // The entry is written last: until it exists, the loader knows nothing
         // of this deployment.
         try boot.write(s.arena, s.io, s.bootDir(), .{
@@ -366,10 +366,9 @@ pub const System = struct {
         defer parent.close(s.io);
         const name = try std.fmt.allocPrint(s.arena, "{d}", .{id});
         try btrfs.snapshot(s.root, parent, name);
-        errdefer {
-            boot.remove(s.arena, s.io, s.bootDir(), id) catch {};
-            btrfs.removeSubvolume(s.io, parent, name) catch {};
-        }
+        var backup_durable = false;
+        errdefer if (!backup_durable) s.discardDeployment(parent, name, id);
+        try std.posix.syncfs(parent.handle);
 
         // The preserved state ranks just below the running system: it is what
         // was chosen before, so it is what the loader falls back to.
@@ -382,6 +381,8 @@ pub const System = struct {
             .options = try boot.optionsFor(s.arena, current.options, id),
             .counted = false,
         });
+        // Keep the durable fallback even if replacing the running entry fails.
+        backup_durable = true;
         try boot.write(s.arena, s.io, s.bootDir(), .{
             .id = s.current,
             .priority = top + 2,
@@ -484,13 +485,10 @@ pub const System = struct {
         defer parent.close(s.io);
         var removed: std.ArrayList(u32) = .empty;
         // An entry must never outlive its subvolume, so entries go first.
-        for (entries) |e| {
-            if (keeping.contains(e.id)) continue;
-            try boot.remove(s.arena, s.io, s.bootDir(), e.id);
-        }
         for (ids) |id| {
             if (keeping.contains(id)) continue;
-            // A subvolume without an entry is a deployment that never completed.
+            // Also flush a deletion a previous collection could not confirm.
+            try boot.remove(s.arena, s.io, s.bootDir(), id);
             try btrfs.removeSubvolume(s.io, parent, try std.fmt.allocPrint(s.arena, "{d}", .{id}));
             try removed.append(s.arena, id);
         }

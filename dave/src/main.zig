@@ -693,7 +693,10 @@ const App = struct {
         if (solution.isEmpty()) {
             // Nothing to install or remove, but the world may have changed:
             // what was asked for is now remembered as asked for, or not.
-            if (!app.opts.dry_run) try db.saveWorld(app.arena, app.io, ctx.root, world.items);
+            if (!app.opts.dry_run) {
+                try db.saveWorld(app.arena, app.io, ctx.root, world.items);
+                if (current != null) try std.posix.syncfs(ctx.root.handle);
+            }
             if (kind == .install) return app.say("Already installed.", .{});
             for (named.items) |n| {
                 const needing = try query.requiredBy(app.arena, ctx.installed, n);
@@ -741,6 +744,9 @@ const App = struct {
             return e;
         };
         try db.saveWorld(app.arena, app.io, ctx.root, world.items);
+        // The package transaction flushed the payload. Its triggers and the
+        // subsequent world-file rename must also survive an immediate reboot.
+        if (current != null) try std.posix.syncfs(ctx.root.handle);
         try app.say("Done.", .{});
 
         if (sys) |*s| {
@@ -1877,6 +1883,15 @@ const App = struct {
         const kernel = deploy.findKernelIn(app.arena, app.io, target) catch return app.fail("the installed system has no kernel", .{});
         const consoles = try provision.consoleArgs(app.arena, app.readAbsolute("/proc/cmdline") orelse "");
         const options = try provision.cmdlineFor(app.arena, root_uuid, consoles);
+        if (beside != null) {
+            // joe-base's repart.d grows the first partition of type "root" on
+            // the disk into free space at every boot. Beside another Linux,
+            // that could be the other system's; joe already has its space.
+            try target.createDirPath(app.io, "etc/repart.d");
+            target.symLink(app.io, "/dev/null", "etc/repart.d/50-root.conf", .{}) catch |e|
+                return app.failErr(e, "cannot turn off growing the root partition", .{});
+        }
+        try std.posix.syncfs(target.handle);
         // Closed before the target is unmounted, as the ESP is mounted in it.
         {
             var esp = try app.openDir(target_path ++ "/" ++ provision.esp_mount);
@@ -1886,16 +1901,12 @@ const App = struct {
                 defer xbootldr.close(app.io);
                 provision.writeBeside(app.arena, app.io, esp, xbootldr, .{ .root = target, .kernel_path = kernel }, options) catch |e|
                     return app.failErr(e, "cannot write the boot partitions", .{});
-                // joe-base's repart.d grows the first partition of type "root" on
-                // the disk into free space at every boot. Beside another Linux,
-                // that could be the other system's; joe already has its space.
-                try target.createDirPath(app.io, "etc/repart.d");
-                target.symLink(app.io, "/dev/null", "etc/repart.d/50-root.conf", .{}) catch |e|
-                    return app.failErr(e, "cannot turn off growing the root partition", .{});
+                try boot.syncFilesystem(app.io, xbootldr);
             } else {
                 provision.writeEsp(app.arena, app.io, esp, .{ .root = target, .kernel_path = kernel }, options) catch |e|
                     return app.fail("cannot write the EFI system partition: {t}", .{e});
             }
+            try boot.syncFilesystem(app.io, esp);
             // Tell the firmware where the boot loader is: a boot entry, first in
             // its boot order, as `bootctl install --variables=yes` makes one
             // (joe has no bootctl). A firmware that cannot be told still finds

@@ -27,7 +27,6 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const archive = @import("archive.zig");
-const db = @import("db.zig");
 const arch = @import("arch.zig");
 const Version = @import("solver/version.zig").Version;
 
@@ -118,7 +117,11 @@ pub fn list(arena: Allocator, io: Io, esp: Io.Dir) ![]Entry {
     var it = dir.iterate();
     while (try it.next(io)) |e| {
         const parsed = parseName(e.name) orelse continue;
-        const text = dir.readFileAlloc(io, e.name, arena, .limited(64 * 1024)) catch continue;
+        if (e.kind != .file and e.kind != .unknown) continue;
+        const text = dir.readFileAlloc(io, e.name, arena, .limited(64 * 1024)) catch |err| switch (err) {
+            error.FileNotFound, error.StreamTooLong => continue,
+            else => return err,
+        };
         const priority = std.fmt.parseInt(u64, field(text, "version") orelse continue, 10) catch continue;
         try out.append(arena, .{
             .id = parsed.id,
@@ -170,6 +173,44 @@ pub const WriteOptions = struct {
     counted: bool,
 };
 
+/// Commit both the file contents and the FAT namespace. syncfs also covers
+/// newly created ancestors (loader/entries, joe/kernels, or joe/initrd).
+/// The caller's directory may be path-only, which syncfs cannot use.
+pub fn syncFilesystem(io: Io, dir: Io.Dir) !void {
+    var fd = try dir.openDir(io, ".", .{ .iterate = true });
+    defer fd.close(io);
+    try std.posix.syncfs(fd.handle);
+}
+
+fn publish(io: Io, dir: Io.Dir, staged: *Io.File.Atomic) !void {
+    try staged.file.sync(io);
+    try staged.replace(io);
+    try syncFilesystem(io, dir);
+}
+
+pub fn writeFile(io: Io, dir: Io.Dir, path: []const u8, bytes: []const u8) !void {
+    var staged = try dir.createFileAtomic(io, path, .{ .replace = true, .make_path = true });
+    defer staged.deinit(io);
+    try staged.file.writeStreamingAll(io, bytes);
+    try publish(io, dir, &staged);
+}
+
+pub fn copyFile(io: Io, dir: Io.Dir, path: []const u8, source: Io.Dir, source_path: []const u8) !void {
+    var file = try source.openFile(io, source_path, .{});
+    defer file.close(io);
+    var staged = try dir.createFileAtomic(io, path, .{ .replace = true, .make_path = true });
+    defer staged.deinit(io);
+    var reader = file.reader(io, &.{});
+    var buffer: [16 * 1024]u8 = undefined;
+    var writer = staged.file.writer(io, &buffer);
+    _ = writer.interface.sendFileAll(&reader, .unlimited) catch |err| switch (err) {
+        error.ReadFailed => return reader.err.?,
+        error.WriteFailed => return writer.err.?,
+    };
+    try writer.flush();
+    try publish(io, dir, &staged);
+}
+
 /// Writes the entry for a deployment, replacing any existing entry for it.
 /// The file appears under its final name only once complete.
 pub fn write(arena: Allocator, io: Io, esp: Io.Dir, options: WriteOptions) !void {
@@ -192,38 +233,36 @@ pub fn write(arena: Allocator, io: Io, esp: Io.Dir, options: WriteOptions) !void
     for (options.initrds) |initrd| try text.writer.print("initrd {s}\n", .{initrd});
     try text.writer.print("options {s}\n", .{options.options});
 
-    // Remove stale names for this deployment first; if we are interrupted in
-    // between, the deployment merely has no entry, which is always safe.
-    try removeFrom(arena, io, dir, options.id);
-    // The temporary name does not end in ".conf", so the loader ignores it.
-    const tmp = try std.fmt.allocPrint(arena, ".{s}.tmp", .{name});
-    try dir.writeFile(io, .{ .sub_path = tmp, .data = text.written() });
-    {
-        var f = try dir.openFile(io, tmp, .{});
-        defer f.close(io);
-        f.sync(io) catch {};
-    }
-    try dir.rename(tmp, dir, name, io);
+    // A crash during a counted-name change can leave two valid entries.
+    // Keep the old name until the complete replacement is durable.
+    try writeFile(io, dir, name, text.written());
+    try removeFrom(arena, io, dir, options.id, name);
 }
 
-/// Marks a deployment's boot good: renames `joe-<id>+L-D.conf` to
+/// Marks a deployment's boot good: promotes `joe-<id>+L-D.conf` to
 /// `joe-<id>.conf`, as systemd-bless-boot does once a counted boot has been
-/// checked. Returns whether there was a counter to remove; an entry that is
-/// already good is left alone, and a missing one is an error.
+/// checked. Returns true when it publishes the good entry. Retrying cleans
+/// up any remaining counted names. A missing entry is an error.
 pub fn bless(arena: Allocator, io: Io, boot_dir: Io.Dir, id: u32) !bool {
     var dir = try boot_dir.openDir(io, entries_dir, .{ .iterate = true });
     defer dir.close(io);
+    const to = try std.fmt.allocPrint(arena, prefix ++ "{d}" ++ suffix, .{id});
     var it = dir.iterate();
     var counted: ?[]const u8 = null;
     while (try it.next(io)) |e| {
         const parsed = parseName(e.name) orelse continue;
         if (parsed.id != id) continue;
-        if (parsed.tries_left == null) return false;
+        if (parsed.tries_left == null) {
+            // A retry may find both names after publishing the good entry.
+            try syncFilesystem(io, dir);
+            try removeFrom(arena, io, dir, id, to);
+            return false;
+        }
         counted = try arena.dupe(u8, e.name);
     }
     const from = counted orelse return error.FileNotFound;
-    const to = try std.fmt.allocPrint(arena, prefix ++ "{d}" ++ suffix, .{id});
-    try dir.rename(from, dir, to, io);
+    try copyFile(io, dir, to, dir, from);
+    try removeFrom(arena, io, dir, id, to);
     return true;
 }
 
@@ -240,17 +279,20 @@ pub fn remove(arena: Allocator, io: Io, esp: Io.Dir, id: u32) !void {
         else => return err,
     };
     defer dir.close(io);
-    try removeFrom(arena, io, dir, id);
+    try removeFrom(arena, io, dir, id, null);
 }
 
-fn removeFrom(arena: Allocator, io: Io, dir: Io.Dir, id: u32) !void {
+fn removeFrom(arena: Allocator, io: Io, dir: Io.Dir, id: u32, keep_name: ?[]const u8) !void {
     var doomed: std.ArrayList([]const u8) = .empty;
     var it = dir.iterate();
     while (try it.next(io)) |e| {
         const parsed = parseName(e.name) orelse continue;
+        if (keep_name) |keep| if (std.mem.eql(u8, keep, e.name)) continue;
         if (parsed.id == id) try doomed.append(arena, try arena.dupe(u8, e.name));
     }
     for (doomed.items) |name| try dir.deleteFile(io, name);
+    // An explicit removal also completes a deletion interrupted before its sync.
+    if (doomed.items.len != 0 or keep_name == null) try syncFilesystem(io, dir);
 }
 
 /// Copies a kernel image to the ESP under a name derived from its contents and
@@ -269,14 +311,17 @@ fn installByContent(arena: Allocator, io: Io, esp: Io.Dir, src_dir: Io.Dir, src_
     const digest = try archive.hashFile(io, src_dir, src_path);
     const rel = try std.fmt.allocPrint(arena, "{s}/{s}{s}", .{ dir, digest[0..16], ext });
     const loader_path = try std.fmt.allocPrint(arena, "/{s}", .{rel});
-    if (esp.statFile(io, rel, .{})) |_| return loader_path else |err| switch (err) {
+    // An earlier dave could leave a truncated file at the final name.
+    if (archive.hashFile(io, esp, rel)) |existing| {
+        if (std.mem.eql(u8, &digest, &existing)) {
+            try syncFilesystem(io, esp);
+            return loader_path;
+        }
+    } else |err| switch (err) {
         error.FileNotFound => {},
         else => return err,
     }
-    try esp.createDirPath(io, dir);
-    const tmp = try std.fmt.allocPrint(arena, "{s}.tmp", .{rel});
-    try src_dir.copyFile(src_path, esp, tmp, io, .{});
-    try esp.rename(tmp, esp, rel, io);
+    try copyFile(io, esp, rel, src_dir, src_path);
     return loader_path;
 }
 
@@ -302,6 +347,7 @@ pub fn pruneKernels(arena: Allocator, io: Io, esp: Io.Dir, entries: []const Entr
             try doomed.append(arena, try arena.dupe(u8, e.name));
         }
         for (doomed.items) |name| try dir.deleteFile(io, name);
+        if (doomed.items.len != 0) try syncFilesystem(io, dir);
     }
 }
 
@@ -352,16 +398,12 @@ pub fn updateLoader(arena: Allocator, io: Io, esp: Io.Dir, root: Io.Dir) !bool {
     const new_version = loaderVersion(new) orelse return false;
     var replaced = false;
     for (loader_targets) |target| {
-        const old = esp.readFileAlloc(io, target, arena, limit) catch continue;
+        const old = esp.readFileAlloc(io, target, arena, limit) catch |err| switch (err) {
+            error.FileNotFound, error.StreamTooLong => continue,
+            else => return err,
+        };
         if (!newerLoader(new_version, loaderVersion(old) orelse continue)) continue;
-        const tmp = try std.fmt.allocPrint(arena, "{s}.tmp", .{target});
-        try esp.writeFile(io, .{ .sub_path = tmp, .data = new });
-        {
-            var f = try esp.openFile(io, tmp, .{});
-            defer f.close(io);
-            f.sync(io) catch {};
-        }
-        try esp.rename(tmp, esp, target, io);
+        try writeFile(io, esp, target, new);
         replaced = true;
     }
     return replaced;
@@ -438,6 +480,14 @@ test "write, list, order and remove entries" {
     try testing.expectEqual(@as(u32, 1), defaultEntry(entries).?.id);
     try testing.expectEqual(@as(u64, 4), find(entries, 1).?.priority);
 
+    // Failure to publish the new name preserves the old counted entry.
+    const old_path = entries_dir ++ "/joe-2+0-3.conf";
+    const old = try esp.readFileAlloc(io, old_path, arena, .limited(4096));
+    try esp.createDir(io, entries_dir ++ "/joe-2.conf", .default_dir);
+    try testing.expectError(error.IsDir, write(arena, io, esp, .{ .id = 2, .priority = 9, .kernel = "/joe/kernels/a.efi", .options = opts, .counted = false }));
+    try testing.expectEqualStrings(old, try esp.readFileAlloc(io, old_path, arena, .limited(4096)));
+    try esp.deleteDir(io, entries_dir ++ "/joe-2.conf");
+
     // Rewriting an entry leaves exactly one file for that deployment.
     try write(arena, io, esp, .{ .id = 2, .priority = 9, .kernel = "/joe/kernels/a.efi", .options = opts, .counted = false });
     entries = try list(arena, io, esp);
@@ -470,6 +520,13 @@ test "blessing removes the boot counter once" {
     try testing.expectEqualStrings("joe-2.conf", find(entries, 2).?.file_name);
     try testing.expect(!try isCounted(arena, io, esp, 2));
 
+    // A cut after publishing the good entry can leave its counted alias.
+    const stale = entries_dir ++ "/joe-2+2-1.conf";
+    try esp.writeFile(io, .{ .sub_path = stale, .data = "stale" });
+    try testing.expect(!try bless(arena, io, esp, 2));
+    try testing.expectError(error.FileNotFound, esp.statFile(io, stale, .{}));
+    try testing.expectEqualStrings(find(entries, 2).?.options, find(try list(arena, io, esp), 2).?.options);
+
     // Blessing again, or blessing an entry that never counted, changes nothing.
     try testing.expect(!try bless(arena, io, esp, 2));
     try testing.expect(!try bless(arena, io, esp, 1));
@@ -490,9 +547,11 @@ test "kernels are stored by content and pruned when unreferenced" {
     try tmp.dir.writeFile(io, .{ .sub_path = "vmlinuz-a", .data = "kernel a" });
     try tmp.dir.writeFile(io, .{ .sub_path = "vmlinuz-b", .data = "kernel b" });
     const a = try installKernel(arena, io, esp, tmp.dir, "vmlinuz-a");
+    try esp.writeFile(io, .{ .sub_path = a[1..], .data = "" });
     const a_again = try installKernel(arena, io, esp, tmp.dir, "vmlinuz-a");
     const b = try installKernel(arena, io, esp, tmp.dir, "vmlinuz-b");
     try testing.expectEqualStrings(a, a_again);
+    try testing.expectEqualStrings("kernel a", try esp.readFileAlloc(io, a_again[1..], arena, .limited(128)));
     try testing.expect(!std.mem.eql(u8, a, b));
     try testing.expect(std.mem.startsWith(u8, a, "/joe/kernels/"));
 
