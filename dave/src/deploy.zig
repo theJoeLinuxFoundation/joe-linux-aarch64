@@ -78,6 +78,9 @@ pub const State = struct {
     last_finalize: ?FinalizeOutcome = null,
 };
 
+/// The init a deployment must have to be worth booting (see sanityCheck).
+const init_path = "usr/sbin/init";
+
 pub const System = struct {
     gpa: Allocator,
     arena: Allocator,
@@ -183,8 +186,11 @@ pub const System = struct {
     /// The minimum a root needs before it is worth trying to boot.
     fn sanityCheck(s: *System, root: Io.Dir) !void {
         _ = try s.findKernel(root);
-        _ = root.statFile(s.io, "usr/lib/systemd/systemd", .{}) catch
-            return s.fail(error.NoInit, "the upgraded system would have no init (usr/lib/systemd/systemd)", .{});
+        // The program the kernel starts, /sbin/init: dynamod-init on joe
+        // Linux ARM (packages/dynamod links it), where joe Linux checks for
+        // systemd.
+        _ = root.statFile(s.io, init_path, .{}) catch
+            return s.fail(error.NoInit, "the upgraded system would have no init (" ++ init_path ++ ")", .{});
         _ = try db.load(s.arena, s.io, root);
     }
 
@@ -703,10 +709,10 @@ const Fixture = struct {
         };
         const root = self.sys.root;
         try root.createDirPath(io, "usr/lib/modules/7.3.1-joe");
-        try root.createDirPath(io, "usr/lib/systemd");
+        try root.createDirPath(io, "usr/sbin");
         try root.createDirPath(io, "etc");
         try root.writeFile(io, .{ .sub_path = "usr/lib/modules/7.3.1-joe/vmlinuz", .data = "kernel 7.3.1" });
-        try root.writeFile(io, .{ .sub_path = "usr/lib/systemd/systemd", .data = "init" });
+        try root.writeFile(io, .{ .sub_path = init_path, .data = "init" });
         const kernel = try boot.installKernel(arena, io, self.sys.esp, root, "usr/lib/modules/7.3.1-joe/vmlinuz");
         try boot.write(arena, io, self.sys.esp, .{ .id = 1, .priority = 1, .kernel = kernel, .options = options, .counted = false });
         return true;
@@ -858,10 +864,10 @@ test "staging rejects an upgrade that would not boot" {
     const s = &fx.sys;
 
     // Hand the kernel and init to packages, then stage their removal.
-    try s.root.deleteFile(testing.io, "usr/lib/systemd/systemd");
-    try fx.installLive(try fx.package("systemd", "262-r1", "usr/lib/systemd/systemd", "init"));
-    var staged = try fx.plan(&.{}, "remove systemd");
-    staged.remove = &.{"systemd"};
+    try s.root.deleteFile(testing.io, init_path);
+    try fx.installLive(try fx.package("dynamod", "0.1.0-r1", init_path, "init"));
+    var staged = try fx.plan(&.{}, "remove dynamod");
+    staged.remove = &.{"dynamod"};
     try testing.expectError(error.NoInit, s.stage(staged));
     try testing.expect((try s.loadState()).staged == null);
     try testing.expectEqual(@as(usize, 1), (try s.deploymentIds()).len);
