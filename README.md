@@ -28,32 +28,92 @@ Everything under those is new:
 The userland is GNU, as in joe Linux, so the system is ordinary to use: bash,
 coreutils, util-linux, Linux-PAM, shadow, OpenSSH, doas, vim and nano.
 
-> **Status: work in progress, not usable yet.** The goal of the first
-> milestone is a bootable UEFI install medium: an ISO that boots an Arm server
-> (or QEMU) from a CD or a USB stick into a live console system, from which
-> `dave install-system` installs joe onto a disk.
+> **Status: alpha.** **J1-7.3.1-0.3.0-alpha1** is the first release: an
+> installation medium for 64-bit Arm machines with UEFI, and a repository of
+> 202 packages. It has been tested in QEMU (the `virt` machine, as a CD and as
+> a USB stick); no physical server has run it yet. Keep anything that matters
+> elsewhere.
 
 ## Where it stands
 
 Done:
 
 - **The toolchain.** It builds reproducibly from pinned sources: LLVM 23,
-  bionic, compiler-rt, libunwind and libc++. A C++ program that throws, starts
-  threads and loads libraries runs on joe's dynamic linker.
-- **A Rust cross compiler for bionic**, which dynamod's service manager needs.
-- **The temporary tools** (following Linux From Scratch's chapters 6 and 7),
-  and the build root they make.
-- **dave for aarch64**, with its boot integration moved from systemd to
-  dynamod.
-- **dynamod**, ported to aarch64 and bionic. Its PID 1 is in Zig, its service
-  manager in Rust.
-- **The kernel** (Linux 7.3 with the joe security module) and **systemd-boot**
-  both build, and the kernel boots.
+  bionic, compiler-rt, libunwind and libc++, and a Rust cross compiler for
+  bionic, which dynamod's service manager needs. It bootstraps natively on an
+  aarch64 machine as well as under qemu-user on x86_64.
+- **dynamod** as init, ported to aarch64 and bionic (PID 1 in Zig, the service
+  manager in Rust), and **dave** with its boot integration moved to it:
+  installed systems upgrade into btrfs snapshots and step back by themselves
+  when a new system does not boot.
+- **The kernel** (Linux 7.3.1 with the joe security module) and
+  **systemd-boot**.
+- **The base system**, about 85 packages, and **118 more**: libraries,
+  development tools (git, curl, rsync, texinfo, ccache, ...), the command line
+  (tmux, htop, jq, GnuPG, tcpdump, ...), and servers (nginx, HAProxy,
+  PostgreSQL, Valkey, memcached, Unbound, chrony, WireGuard, OpenVPN, ...).
+  Servers are installed disabled; `dynamodctl enable NAME` starts one at boot.
+- **The installation medium**: it starts a live console system with root
+  logged in, from which `dave install-system` installs joe onto a disk.
 
-In progress: building the base system's packages (about 90) against bionic.
-Each build failure caused by bionic is fixed in bionic itself, as a patch,
-rather than in every package. After that: the live ISO, and installing from
-it.
+Not done yet:
+
+- **Hardware.** Only QEMU's `virt` machine has run it. Arm servers with UEFI
+  and ACPI should work; reports are welcome.
+- **The security module's declarations.** Most privileged programs are
+  sealed `undeclared` (`make audit-security` lists them), which is fine while
+  the module only logs, as it does unless the kernel is started with
+  `joe=enforce`.
+- **Some packages** wait on bionic: rsyslog relies on POSIX thread
+  cancellation, which bionic does not have; strace, zsh, nfs-utils and
+  nftables need more work. Programs that need Go, Rust or Node.js are not
+  packaged.
+- **A desktop.** It is to come from [Shades](https://github.com/sinisterMage/shades),
+  a display protocol and compositor in Zig, rather than Wayland and Mesa.
+
+## Installing
+
+Write the medium to a USB stick (`dd if=joe-J1-7.3.1-0.3.0-alpha1-aarch64.iso
+of=/dev/sdX bs=4M`) or attach it as a CD, and start the machine from it with
+UEFI. In QEMU:
+
+```
+qemu-system-aarch64 -M virt -cpu host -accel kvm -m 4G -smp 4 \
+    -drive if=pflash,format=raw,readonly=on,file=QEMU_EFI.fd \
+    -drive if=pflash,format=raw,file=QEMU_VARS.fd \
+    -device virtio-scsi-pci -device scsi-cd,drive=cd \
+    -drive if=none,id=cd,media=cdrom,readonly=on,file=joe-J1-7.3.1-0.3.0-alpha1-aarch64.iso \
+    -drive if=virtio,file=disk.qcow2 -nographic
+```
+
+(`-accel hvf` on a Mac; on an x86_64 machine leave out `-cpu host -accel ...`
+for `-cpu max`, which is slow.) The live system logs root in on the console.
+`dave install-system --list` shows the disks and `dave install-system --disk
+DISK` erases one and installs onto it. At its first start the installed
+system asks on its console for root's password, then offers an account of
+your own (which becomes root with `doas`) and an SSH public key.
+
+Installed systems take their packages from
+[joelinux.io/aarch64](https://joelinux.io/aarch64/): `dave install NAME`,
+`dave upgrade` (applied at the next restart), `dave rollback`.
+
+## Releases
+
+A release is named **J*X*-*Y*-*Z***, with a stage such as `-alpha1` before
+it is final, as joe Linux's are:
+
+| Part | Is | In J1-7.3.1-0.3.0-alpha1 |
+|------|----|--------------------------|
+| J | joe, the distribution | J |
+| *X* | the system revision | 1 |
+| *Y* | the kernel's version | 7.3.1 |
+| *Z* | dave's version | 0.3.0 |
+
+`packages/joe-release` writes the name into `os-release` (as "joe Linux ARM")
+and the medium is named after it. Its package version is the revision and
+stage alone (`1alpha1`), which dave orders before the final `1`. joe Linux
+ARM's revisions and dave versions are its own: J1-7.3.1-0.3.0-alpha1 is not
+the same system as joe Linux's J1-7.3.1-0.2.0-alpha1.
 
 ## bionic as a Linux C library
 
