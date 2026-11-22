@@ -1,7 +1,7 @@
 .{
     .name = "dynamod",
     .version = "0.1.0",
-    .release = 3,
+    .release = 4,
     .description = "dynamod, the init system and service manager, with its systemd-compatible commands",
     .license = "MIT",
     // The services it runs at boot (packages/joe-base) use util-linux's

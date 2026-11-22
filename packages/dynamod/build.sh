@@ -54,4 +54,19 @@ EOT
     .exec = .{ "/usr/bin/systemd-tmpfiles", "--create", "--exclude-prefix=/dev", "--exclude-prefix=/proc", "--exclude-prefix=/sys", "--exclude-prefix=/run" },
 }
 EOT
+    # dynamod reads its service definitions at boot and on `dynamodctl
+    # reload`, and does not look for one it is asked to start (systemd
+    # does), so without this `dave install nginx` is followed by "unknown
+    # service: nginx" until the next boot. A root that is not the running
+    # system (an image, an installation, an upgrade applied at shutdown) has
+    # no dynamod to ask: dave runs triggers there in a chroot without the
+    # running system's /run, where the control socket is missing.
+    cat > "$DESTDIR/usr/lib/dave/triggers/13-services.zon" <<'EOT'
+.{
+    .name = "service definitions",
+    .optional = true,
+    .paths = .{"usr/lib/dynamod/services/"},
+    .exec = .{ "/bin/sh", "-c", "[ ! -S /run/dynamod/control.sock ] || exec /usr/bin/dynamodctl reload" },
+}
+EOT
 }
