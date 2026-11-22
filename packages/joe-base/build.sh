@@ -23,20 +23,26 @@ for c in $(cat /sys/class/tty/console/active 2>/dev/null); do
     esac
 done
 [ -n "$serial" ] || exit 0
+# agetty makes the line its controlling terminal (TIOCSCTTY) only as a
+# session leader, which inits such as systemd make every getty and dynamod
+# does not; without it the shell has no job control, ^C reaches nothing, and
+# doas, which reads the password from /dev/tty, cannot ask for one. setsid
+# makes it one without a fork (this script leads no process group), so the
+# service's process stays the one dynamod watches.
 # joe-test-console (test images only) and joe-live (the installation
 # medium, which has no password to give) log root in.
 if [ -e /usr/lib/joe/test-console ]; then
-    exec /usr/sbin/agetty --autologin root --noclear --keep-baud 115200 "$serial" dumb
+    exec /usr/bin/setsid /usr/sbin/agetty --autologin root --noclear --keep-baud 115200 "$serial" dumb
 fi
 if [ -e /usr/lib/joe/live-console ]; then
-    exec /usr/sbin/agetty --autologin root --keep-baud 115200,57600,38400,9600 "$serial" vt220
+    exec /usr/bin/setsid /usr/sbin/agetty --autologin root --keep-baud 115200,57600,38400,9600 "$serial" vt220
 fi
 # An installed system's first start: nobody can log in yet (first-setup).
 if /usr/lib/joe/needs-first-setup; then
-    exec /usr/sbin/agetty --autologin root --login-program /usr/lib/joe/first-setup \
+    exec /usr/bin/setsid /usr/sbin/agetty --autologin root --login-program /usr/lib/joe/first-setup \
         --keep-baud 115200,57600,38400,9600 "$serial" vt220
 fi
-exec /usr/sbin/agetty --keep-baud 115200,57600,38400,9600 "$serial" vt220
+exec /usr/bin/setsid /usr/sbin/agetty --keep-baud 115200,57600,38400,9600 "$serial" vt220
 EOT
     cat > "$DESTDIR/usr/lib/joe/modules-load" <<'EOT'
 #!/bin/sh
@@ -65,14 +71,15 @@ EOT
 #!/bin/sh
 # Runs agetty on a virtual terminal, logging root in on the installation
 # medium (joe-live), which has no password to give, and running first-setup
-# on an installed system's first start, when nobody can log in yet.
+# on an installed system's first start, when nobody can log in yet. setsid,
+# as in serial-getty, so that the console is agetty's controlling terminal.
 if [ -e /usr/lib/joe/live-console ]; then
-    exec /usr/sbin/agetty --noclear --autologin root "$1" linux
+    exec /usr/bin/setsid /usr/sbin/agetty --noclear --autologin root "$1" linux
 fi
 if /usr/lib/joe/needs-first-setup; then
-    exec /usr/sbin/agetty --noclear --autologin root --login-program /usr/lib/joe/first-setup "$1" linux
+    exec /usr/bin/setsid /usr/sbin/agetty --noclear --autologin root --login-program /usr/lib/joe/first-setup "$1" linux
 fi
-exec /usr/sbin/agetty --noclear "$1" linux
+exec /usr/bin/setsid /usr/sbin/agetty --noclear "$1" linux
 EOT
     # An installed system has no account anyone can log in with: root's
     # password is locked (joe-filesystem) and there is no other account.
