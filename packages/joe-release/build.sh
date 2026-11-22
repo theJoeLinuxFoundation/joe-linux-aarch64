@@ -6,8 +6,9 @@
 #   stage  alpha1, beta1, rc1 ...; nothing for a final release
 #
 # Y and Z are written here, so this recipe changes (and its .release is
-# bumped) whenever the kernel's or dave's version does. tests/vm/live.tomlx
-# checks them against the running kernel and dave.
+# bumped) whenever the kernel's or dave's version does. Nothing checks them
+# against the running kernel and dave yet (joe Linux's tests/vm/live.tomlx
+# does), so keep them in step by hand.
 
 # Prints the release's name; build machine scripts call it as well.
 release_name() {
