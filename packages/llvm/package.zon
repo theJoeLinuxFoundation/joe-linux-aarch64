@@ -1,0 +1,17 @@
+.{
+    .name = "llvm",
+    .version = "23.1.0",
+    .release = 1,
+    .description = "LLVM's compiler and tools: clang, the lld linker, the binary tools under their binutils names, and compiler-rt's builtins",
+    .license = "Apache-2.0 WITH LLVM-exception",
+    .sources = .{
+        // The release bootstrap/sources names for the cross toolchain, and
+        // llvm-runtimes builds from.
+        .{ .url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.0/llvm-project-23.1.0.src.tar.xz", .sha256 = "ab1f0e3ec52448c33e8782eaf0422504b87c7b016b22514653ee0d8fcee479ff" },
+    },
+    // What clang links programs with: libc++ and libunwind (llvm-runtimes),
+    // and bionic's C library and startup files. zlib and zstd compress debug
+    // sections.
+    .depends = .{ "bionic", "llvm-runtimes", "zlib", "zstd" },
+    .build_depends = .{ "cmake", "ninja", "python" },
+}
