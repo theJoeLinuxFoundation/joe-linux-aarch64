@@ -1,7 +1,7 @@
 .{
     .name = "joe-base",
     .version = "0.1",
-    .release = 4,
+    .release = 5,
     .description = "Everything a minimal joe Linux ARM system consists of",
     .license = "MIT",
     .depends = .{
@@ -52,5 +52,9 @@
         "dosfstools",
         "e2fsprogs",
         "make-ca",
+        // A compiler: joe Linux ARM is built with LLVM alone, and an
+        // installed system can build software with the same toolchain
+        // (clang, lld, the binary tools and compiler-rt's builtins).
+        "llvm",
     },
 }
