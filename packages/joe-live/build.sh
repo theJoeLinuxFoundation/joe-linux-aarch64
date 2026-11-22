@@ -38,5 +38,8 @@ This is joe Linux ARM's installation medium. Nothing done here is kept.
   dave install-system --list                  the disks, and what each allows
   dave install-system --disk /dev/nvme0n1     erase that disk and install
 
+At its first start, the installed system asks on its console for root's
+password, and offers an account of your own and an SSH key.
+
 EOT
 }
