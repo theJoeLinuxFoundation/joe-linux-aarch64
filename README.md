@@ -28,9 +28,10 @@ Everything under those is new:
 The userland is GNU, as in joe Linux, so the system is ordinary to use: bash,
 coreutils, util-linux, Linux-PAM, shadow, OpenSSH, doas, vim and nano.
 
-> **Status: alpha.** **J1-7.3.1-0.3.0-alpha1** is the first release: an
+> **Status: alpha.** **J1-7.3.1-0.3.0-alpha2** is the newest release: an
 > installation medium for 64-bit Arm machines with UEFI, and a repository of
-> 202 packages. It has been tested in QEMU (the `virt` machine, as a CD and as
+> 203 packages. The first alpha had no compiler; this one has clang in the
+> base system. It has been tested in QEMU (the `virt` machine, as a CD and as
 > a USB stick); no physical server has run it yet. Keep anything that matters
 > elsewhere.
 
@@ -48,6 +49,10 @@ Done:
   when a new system does not boot.
 - **The kernel** (Linux 7.3.1 with the joe security module) and
   **systemd-boot**.
+- **A native toolchain** in the base system: clang, lld and LLVM's binary
+  tools (also as `cc`, `c++`, `ld`, `ar`, `nm` and the other binutils names)
+  and compiler-rt's builtins, configured as the cross compiler that builds
+  joe is, so an installed system builds software with the same toolchain.
 - **The base system**, about 85 packages, and **118 more**: libraries,
   development tools (git, curl, rsync, texinfo, ccache, ...), the command line
   (tmux, htop, jq, GnuPG, tcpdump, ...), and servers (nginx, HAProxy,
@@ -73,7 +78,7 @@ Not done yet:
 
 ## Installing
 
-Write the medium to a USB stick (`dd if=joe-J1-7.3.1-0.3.0-alpha1-aarch64.iso
+Write the medium to a USB stick (`dd if=joe-J1-7.3.1-0.3.0-alpha2-aarch64.iso
 of=/dev/sdX bs=4M`) or attach it as a CD, and start the machine from it with
 UEFI. In QEMU:
 
@@ -82,7 +87,7 @@ qemu-system-aarch64 -M virt -cpu host -accel kvm -m 4G -smp 4 \
     -drive if=pflash,format=raw,readonly=on,file=QEMU_EFI.fd \
     -drive if=pflash,format=raw,file=QEMU_VARS.fd \
     -device virtio-scsi-pci -device scsi-cd,drive=cd \
-    -drive if=none,id=cd,media=cdrom,readonly=on,file=joe-J1-7.3.1-0.3.0-alpha1-aarch64.iso \
+    -drive if=none,id=cd,media=cdrom,readonly=on,file=joe-J1-7.3.1-0.3.0-alpha2-aarch64.iso \
     -drive if=virtio,file=disk.qcow2 -nographic
 ```
 
@@ -102,7 +107,7 @@ Installed systems take their packages from
 A release is named **J*X*-*Y*-*Z***, with a stage such as `-alpha1` before
 it is final, as joe Linux's are:
 
-| Part | Is | In J1-7.3.1-0.3.0-alpha1 |
+| Part | Is | In J1-7.3.1-0.3.0-alpha2 |
 |------|----|--------------------------|
 | J | joe, the distribution | J |
 | *X* | the system revision | 1 |
@@ -111,7 +116,7 @@ it is final, as joe Linux's are:
 
 `packages/joe-release` writes the name into `os-release` (as "joe Linux ARM")
 and the medium is named after it. Its package version is the revision and
-stage alone (`1alpha1`), which dave orders before the final `1`. joe Linux
+stage alone (`1alpha2`), which dave orders before the final `1`. joe Linux
 ARM's revisions and dave versions are its own: J1-7.3.1-0.3.0-alpha1 is not
 the same system as joe Linux's J1-7.3.1-0.2.0-alpha1.
 
